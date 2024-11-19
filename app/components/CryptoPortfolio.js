@@ -70,7 +70,7 @@ export default function CryptoPortfolio({ precios }) {
           Portfolito
         </h1>
         <p className="text-[#00ff00]/70 text-sm sm:text-base font-mono">
-          portfolio cripto simple
+          un portfolio cripto simple.
         </p>
       </div>
       <table className="w-full">
