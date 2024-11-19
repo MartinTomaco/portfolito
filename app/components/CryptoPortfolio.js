@@ -34,6 +34,12 @@ export default function CryptoPortfolio({ precios }) {
     }
   }, [portfolio, precios, isClient]);
 
+  useEffect(() => {
+    if (isClient) {
+      localStorage.setItem('cryptoPortfolio', JSON.stringify(portfolio));
+    }
+  }, [portfolio, isClient]);
+
   const calcularTotal = () => {
     const total = Object.entries(portfolio).reduce((acc, [crypto, cantidad]) => {
       return acc + (cantidad * (precios[crypto]?.price || 0));
@@ -59,6 +65,14 @@ export default function CryptoPortfolio({ precios }) {
 
   return (
     <div className="w-full max-w-4xl px-2 sm:px-4">
+      <div className="mb-6 text-center">
+        <h1 className="text-[#00ff00] text-2xl sm:text-3xl font-bold font-mono mb-2">
+          Portfolito
+        </h1>
+        <p className="text-[#00ff00]/70 text-sm sm:text-base font-mono">
+          portfolio cripto simple
+        </p>
+      </div>
       <table className="w-full">
         <thead>
           <tr className="border-b border-[#00ff00]/20">
