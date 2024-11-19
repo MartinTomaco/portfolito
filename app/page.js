@@ -36,7 +36,7 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-screen bg-[#0a0a0a]">
       <CryptoMarquee precios={precios} />
-      <div className="flex-1 flex flex-col items-center justify-center p-8">
+      <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8">
         <CryptoPortfolio precios={precios} />
       </div>
     </div>

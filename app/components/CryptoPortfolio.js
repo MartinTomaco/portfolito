@@ -58,57 +58,57 @@ export default function CryptoPortfolio({ precios }) {
   }
 
   return (
-    <div className="w-full max-w-4xl">
+    <div className="w-full max-w-4xl px-2 sm:px-4">
       <table className="w-full">
         <thead>
           <tr className="border-b border-[#00ff00]/20">
-            <th className="py-3 text-left text-[#00ff00] font-mono">Crypto</th>
-            <th className="py-3 text-right text-[#00ff00] font-mono">Cantidad</th>
-            <th className="py-3 text-right text-[#00ff00] font-mono">Precio</th>
-            <th className="py-3 text-right text-[#00ff00] font-mono">Total USD</th>
+            <th className="py-2 text-left text-[#00ff00] font-mono text-xs sm:text-sm">Crypto</th>
+            <th className="py-2 text-right text-[#00ff00] font-mono text-xs sm:text-sm px-1 sm:px-2">Cant.</th>
+            <th className="py-2 text-right text-[#00ff00] font-mono text-xs sm:text-sm px-1 sm:px-2">Precio</th>
+            <th className="py-2 text-right text-[#00ff00] font-mono text-xs sm:text-sm">Total</th>
           </tr>
         </thead>
         <tbody>
           {Object.entries(portfolio).map(([crypto, cantidad]) => (
             <tr key={crypto} className="border-b border-[#00ff00]/10 hover:bg-[#00ff00]/5">
-              <td className="py-3 font-mono text-[#00ff00]">{crypto}</td>
+              <td className="py-2 font-mono text-[#00ff00] text-xs sm:text-sm">{crypto}</td>
               <td 
-                className="py-3 text-right font-mono text-[#00ff00] cursor-pointer relative group w-32 h-[52px]"
+                className="py-2 text-right font-mono text-[#00ff00] cursor-pointer relative group text-xs sm:text-sm px-1 sm:px-2"
                 onClick={() => handleEdit(crypto)}
               >
                 {editando === crypto ? (
                   <div className="absolute inset-0 flex items-center justify-end">
                     <input
                       type="number"
-                      className="w-full h-9 px-2 bg-black border border-[#00ff00] text-[#00ff00] font-mono rounded text-right"
+                      className="w-full h-7 px-1 bg-black border border-[#00ff00] text-[#00ff00] font-mono rounded text-right text-xs sm:text-sm"
                       defaultValue={cantidad}
                       onBlur={(e) => handleSave(crypto, e.target.value)}
                       autoFocus
                     />
                   </div>
                 ) : (
-                  <div className="flex items-center justify-end gap-2 h-full">
+                  <div className="flex items-center justify-end gap-1 h-full">
                     <span>{cantidad}</span>
                     <span className="opacity-0 group-hover:opacity-100 text-xs">✎</span>
                   </div>
                 )}
               </td>
-              <td className="py-3 text-right font-mono text-[#00ff00]">
-                ${precios[crypto]?.price?.toLocaleString() || '0'}
+              <td className="py-2 text-right font-mono text-[#00ff00] text-xs sm:text-sm px-1 sm:px-2">
+                ${precios[crypto]?.price?.toLocaleString()}
               </td>
-              <td className="py-3 text-right font-mono text-[#00ff00]">
-                ${((cantidad * (precios[crypto]?.price || 0))).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+              <td className="py-2 text-right font-mono text-[#00ff00] text-xs sm:text-sm">
+                ${((cantidad * (precios[crypto]?.price || 0))).toLocaleString(undefined, {maximumFractionDigits: 0})}
               </td>
             </tr>
           ))}
         </tbody>
         <tfoot>
           <tr className="border-t-2 border-[#00ff00]/30">
-            <td colSpan="3" className="py-4 text-right font-mono text-[#00ff00] font-bold">
-              Total Portfolio:
+            <td colSpan="3" className="py-2 text-right font-mono text-[#00ff00] font-bold text-xs sm:text-sm">
+              Total:
             </td>
-            <td className="py-4 text-right font-mono text-[#00ff00] font-bold">
-              ${totalPortfolio.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+            <td className="py-2 text-right font-mono text-[#00ff00] font-bold text-xs sm:text-sm">
+              ${totalPortfolio.toLocaleString(undefined, {maximumFractionDigits: 0})}
             </td>
           </tr>
         </tfoot>
