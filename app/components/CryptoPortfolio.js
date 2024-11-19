@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react';
 
-export default function CryptoPortfolio() {
+export default function CryptoPortfolio({ precios }) {
   const [isClient, setIsClient] = useState(false);
   const [portfolio, setPortfolio] = useState({
     BTC: 0,
@@ -10,7 +10,6 @@ export default function CryptoPortfolio() {
     SOL: 0,
     XRP: 0
   });
-  const [precios, setPrecios] = useState({});
   const [editando, setEditando] = useState(null);
   const [totalPortfolio, setTotalPortfolio] = useState(0);
   const [randomValue, setRandomValue] = useState(null);
@@ -30,8 +29,7 @@ export default function CryptoPortfolio() {
   }, []);
 
   useEffect(() => {
-    if (isClient) {
-      localStorage.setItem('cryptoPortfolio', JSON.stringify(portfolio));
+    if (isClient && Object.keys(precios).length > 0) {
       calcularTotal();
     }
   }, [portfolio, precios, isClient]);
