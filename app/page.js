@@ -9,18 +9,48 @@ export default function Home() {
   useEffect(() => {
     const fetchPrecios = async () => {
       try {
+        const storedPortfolio = localStorage.getItem('cryptoPortfolio');
+        const portfolioSymbols = storedPortfolio ? Object.keys(JSON.parse(storedPortfolio)) : [];
+        const defaultSymbols = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP'];
+        const allSymbols = [...new Set([...defaultSymbols, ...portfolioSymbols])];
+        
+        const symbolToId = {
+          'BTC': 'bitcoin',
+          'ETH': 'ethereum',
+          'BNB': 'binancecoin',
+          'SOL': 'solana',
+          'XRP': 'ripple',
+          'USDT': 'tether',
+          'USDC': 'usd-coin',
+          'ADA': 'cardano',
+          'AVAX': 'avalanche-2',
+          'DOT': 'polkadot',
+          'MATIC': 'matic-network',
+          'LINK': 'chainlink',
+          'UNI': 'uniswap',
+          'ATOM': 'cosmos',
+          'LTC': 'litecoin'
+        };
+
+        const ids = allSymbols
+          .map(symbol => symbolToId[symbol] || symbol.toLowerCase())
+          .join(',');
+
         const response = await fetch(
-          'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,binancecoin,solana,ripple&vs_currencies=usd&include_24hr_change=true'
+          `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`
         );
         const data = await response.json();
         
-        const preciosFormateados = {
-          BTC: { price: data.bitcoin.usd, change24h: data.bitcoin.usd_24h_change },
-          ETH: { price: data.ethereum.usd, change24h: data.ethereum.usd_24h_change },
-          BNB: { price: data.binancecoin.usd, change24h: data.binancecoin.usd_24h_change },
-          SOL: { price: data.solana.usd, change24h: data.solana.usd_24h_change },
-          XRP: { price: data.ripple.usd, change24h: data.ripple.usd_24h_change }
-        };
+        const preciosFormateados = {};
+        allSymbols.forEach(symbol => {
+          const id = symbolToId[symbol] || symbol.toLowerCase();
+          if (data[id]) {
+            preciosFormateados[symbol] = {
+              price: data[id].usd,
+              change24h: data[id].usd_24h_change
+            };
+          }
+        });
         
         setPrecios(preciosFormateados);
       } catch (error) {
@@ -38,16 +68,7 @@ export default function Home() {
       <CryptoMarquee precios={precios} />
       <div className="flex-1 flex flex-col items-center justify-start mt-20 p-4 md:p-8 w-full">
         <div className="w-full max-w-2xl">
-          <CryptoPortfolio precios={precios} />
-          
-          <div className="flex gap-3 mt-6 px-2 sm:px-4 justify-end">
-            <button className="w-8 h-8 rounded-full border-2 border-[#00ff00] text-[#00ff00] hover:bg-[#00ff00]/10 flex items-center justify-center text-xl font-bold transition-all duration-300 hover:shadow-[0_0_15px_#00ff00]">
-              +
-            </button>
-            <button className="w-8 h-8 rounded-full border-2 border-[#00ff00] text-[#00ff00] hover:bg-[#00ff00]/10 flex items-center justify-center text-xl font-bold transition-all duration-300 hover:shadow-[0_0_15px_#00ff00]">
-              -
-            </button>
-          </div>
+          <CryptoPortfolio precios={precios} setPrecios={setPrecios} />
         </div>
       </div>
     </div>

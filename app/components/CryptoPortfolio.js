@@ -1,7 +1,8 @@
 'use client'
 import { useState, useEffect } from 'react';
+import CryptoModal from './CryptoModal';
 
-export default function CryptoPortfolio({ precios }) {
+export default function CryptoPortfolio({ precios, setPrecios }) {
   const [isClient, setIsClient] = useState(false);
   const [portfolio, setPortfolio] = useState({
     BTC: 0,
@@ -13,6 +14,8 @@ export default function CryptoPortfolio({ precios }) {
   const [editando, setEditando] = useState(null);
   const [totalPortfolio, setTotalPortfolio] = useState(0);
   const [randomValue, setRandomValue] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [modalType, setModalType] = useState('add');
 
   useEffect(() => {
     setIsClient(true);
@@ -57,6 +60,67 @@ export default function CryptoPortfolio({ precios }) {
       [crypto]: parseFloat(valor) || 0
     }));
     setEditando(null);
+  };
+
+  const handleOpenModal = (type) => {
+    setModalType(type);
+    setShowModal(true);
+  };
+
+  const fetchNewCryptoPrice = async (symbol) => {
+    try {
+      const searchResponse = await fetch(
+        `https://api.coingecko.com/api/v3/search?query=${symbol}`
+      );
+      const searchData = await searchResponse.json();
+      
+      if (searchData.coins.length > 0) {
+        const coinId = searchData.coins[0].id;
+        const response = await fetch(
+          `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd&include_24hr_change=true`
+        );
+        const data = await response.json();
+        
+        if (data[coinId]) {
+          return {
+            price: data[coinId].usd,
+            change24h: data[coinId].usd_24h_change
+          };
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error('Error al obtener precio:', error);
+      return null;
+    }
+  };
+
+  const handleModalSubmit = async (symbol, amount) => {
+    if (modalType === 'add') {
+      const newPrice = await fetchNewCryptoPrice(symbol);
+      if (newPrice) {
+        setPrecios(prev => ({
+          ...prev,
+          [symbol]: newPrice
+        }));
+      }
+      
+      setPortfolio(prev => ({
+        ...prev,
+        [symbol]: (prev[symbol] || 0) + amount
+      }));
+    } else {
+      setPortfolio(prev => {
+        const newAmount = (prev[symbol] || 0) - amount;
+        const newPortfolio = { ...prev };
+        if (newAmount <= 0) {
+          delete newPortfolio[symbol];
+        } else {
+          newPortfolio[symbol] = newAmount;
+        }
+        return newPortfolio;
+      });
+    }
   };
 
   if (!isClient) {
@@ -127,6 +191,27 @@ export default function CryptoPortfolio({ precios }) {
           </tr>
         </tfoot>
       </table>
+      <div className="flex gap-3 mt-6 px-2 sm:px-4 justify-end">
+        <button 
+          onClick={() => handleOpenModal('add')}
+          className="w-8 h-8 rounded-full border-2 border-[#00ff00] text-[#00ff00] hover:bg-[#00ff00]/10 flex items-center justify-center text-xl font-bold transition-all duration-300 hover:shadow-[0_0_15px_#00ff00]"
+        >
+          +
+        </button>
+        <button 
+          onClick={() => handleOpenModal('remove')}
+          className="w-8 h-8 rounded-full border-2 border-[#00ff00] text-[#00ff00] hover:bg-[#00ff00]/10 flex items-center justify-center text-xl font-bold transition-all duration-300 hover:shadow-[0_0_15px_#00ff00]"
+        >
+          -
+        </button>
+      </div>
+      <CryptoModal 
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onSubmit={handleModalSubmit}
+        type={modalType}
+        existingCryptos={Object.keys(portfolio)}
+      />
     </div>
   );
 } 
