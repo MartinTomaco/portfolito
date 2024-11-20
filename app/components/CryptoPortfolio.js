@@ -13,7 +13,6 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
   });
   const [editando, setEditando] = useState(null);
   const [totalPortfolio, setTotalPortfolio] = useState(0);
-  const [randomValue, setRandomValue] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState('add');
   const [cryptoOrder, setCryptoOrder] = useState([]);
@@ -26,10 +25,6 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
         setPortfolio(JSON.parse(saved));
       }
     }
-  }, []);
-
-  useEffect(() => {
-    setRandomValue(Math.random());
   }, []);
 
   useEffect(() => {
