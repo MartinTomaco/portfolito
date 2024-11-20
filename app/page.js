@@ -40,11 +40,11 @@ export default function Home() {
         <div className="w-full max-w-2xl">
           <CryptoPortfolio precios={precios} />
           
-          <div className="flex gap-4 mt-6 justify-start">
-            <button className="w-12 h-12 rounded-full border-2 border-[#00ff00] text-[#00ff00] hover:bg-[#00ff00]/10 flex items-center justify-center text-xl font-bold transition-all duration-300 hover:shadow-[0_0_15px_#00ff00]">
+          <div className="flex gap-3 mt-6 px-2 sm:px-4 justify-end">
+            <button className="w-8 h-8 rounded-full border-2 border-[#00ff00] text-[#00ff00] hover:bg-[#00ff00]/10 flex items-center justify-center text-xl font-bold transition-all duration-300 hover:shadow-[0_0_15px_#00ff00]">
               +
             </button>
-            <button className="w-12 h-12 rounded-full border-2 border-[#00ff00] text-[#00ff00] hover:bg-[#00ff00]/10 flex items-center justify-center text-xl font-bold transition-all duration-300 hover:shadow-[0_0_15px_#00ff00]">
+            <button className="w-8 h-8 rounded-full border-2 border-[#00ff00] text-[#00ff00] hover:bg-[#00ff00]/10 flex items-center justify-center text-xl font-bold transition-all duration-300 hover:shadow-[0_0_15px_#00ff00]">
               -
             </button>
           </div>
