@@ -16,6 +16,7 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
   const [randomValue, setRandomValue] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState('add');
+  const [cryptoOrder, setCryptoOrder] = useState([]);
 
   useEffect(() => {
     setIsClient(true);
@@ -42,6 +43,17 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
       localStorage.setItem('cryptoPortfolio', JSON.stringify(portfolio));
     }
   }, [portfolio, isClient]);
+
+  useEffect(() => {
+    if (isClient) {
+      const savedOrder = localStorage.getItem('cryptoOrder');
+      if (savedOrder) {
+        setCryptoOrder(JSON.parse(savedOrder));
+      } else {
+        setCryptoOrder(Object.keys(portfolio));
+      }
+    }
+  }, [isClient, portfolio]);
 
   const calcularTotal = () => {
     const total = Object.entries(portfolio).reduce((acc, [crypto, cantidad]) => {
@@ -123,6 +135,31 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
     }
   };
 
+  const handleDragStart = (e, crypto) => {
+    e.dataTransfer.setData('text/plain', crypto);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e, targetCrypto) => {
+    e.preventDefault();
+    const draggedCrypto = e.dataTransfer.getData('text/plain');
+    
+    if (draggedCrypto !== targetCrypto) {
+      const newOrder = [...cryptoOrder];
+      const draggedIndex = newOrder.indexOf(draggedCrypto);
+      const targetIndex = newOrder.indexOf(targetCrypto);
+      
+      newOrder.splice(draggedIndex, 1);
+      newOrder.splice(targetIndex, 0, draggedCrypto);
+      
+      setCryptoOrder(newOrder);
+      localStorage.setItem('cryptoOrder', JSON.stringify(newOrder));
+    }
+  };
+
   if (!isClient) {
     return null; // o un estado de carga
   }
@@ -147,38 +184,48 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
           </tr>
         </thead>
         <tbody>
-          {Object.entries(portfolio).map(([crypto, cantidad]) => (
-            <tr key={crypto} className="border-b border-[#00ff00]/10 hover:bg-[#00ff00]/5">
-              <td className="py-2 font-mono text-[#00ff00] text-xs sm:text-sm">{crypto}</td>
-              <td 
-                className="py-2 text-right font-mono text-[#00ff00] cursor-pointer relative group text-xs sm:text-sm px-1 sm:px-2"
-                onClick={() => handleEdit(crypto)}
+          {cryptoOrder
+            .filter(crypto => portfolio[crypto] > 0)
+            .map((crypto) => (
+              <tr 
+                key={crypto} 
+                className="border-b border-[#00ff00]/10 hover:bg-[#00ff00]/5 cursor-move"
+                draggable="true"
+                onDragStart={(e) => handleDragStart(e, crypto)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, crypto)}
               >
-                {editando === crypto ? (
-                  <div className="absolute inset-0 flex items-center justify-end">
-                    <input
-                      type="number"
-                      className="w-full h-7 px-1 bg-black border border-[#00ff00] text-[#00ff00] font-mono rounded text-right text-xs sm:text-sm"
-                      defaultValue={cantidad}
-                      onBlur={(e) => handleSave(crypto, e.target.value)}
-                      autoFocus
-                    />
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-end gap-1 h-full">
-                    <span>{cantidad}</span>
-                    <span className="opacity-0 group-hover:opacity-100 text-xs">✎</span>
-                  </div>
-                )}
-              </td>
-              <td className="py-2 text-right font-mono text-[#00ff00] text-xs sm:text-sm px-1 sm:px-2">
-                ${precios[crypto]?.price?.toLocaleString()}
-              </td>
-              <td className="py-2 text-right font-mono text-[#00ff00] text-xs sm:text-sm">
-                ${((cantidad * (precios[crypto]?.price || 0))).toLocaleString(undefined, {maximumFractionDigits: 0})}
-              </td>
-            </tr>
-          ))}
+                <td className="py-2 font-mono text-[#00ff00] text-xs sm:text-sm">{crypto}</td>
+                <td 
+                  className="py-2 text-right font-mono text-[#00ff00] cursor-pointer relative group text-xs sm:text-sm px-1 sm:px-2"
+                  onClick={() => handleEdit(crypto)}
+                >
+                  {editando === crypto ? (
+                    <div className="absolute inset-0 flex items-center justify-end">
+                      <input
+                        type="number"
+                        className="w-full h-7 px-1 bg-black border border-[#00ff00] text-[#00ff00] font-mono rounded text-right text-xs sm:text-sm"
+                        defaultValue={portfolio[crypto]}
+                        onBlur={(e) => handleSave(crypto, e.target.value)}
+                        autoFocus
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-end gap-1 h-full">
+                      <span>{portfolio[crypto]}</span>
+                      <span className="opacity-0 group-hover:opacity-100 text-xs">✎</span>
+                    </div>
+                  )}
+                </td>
+                <td className="py-2 text-right font-mono text-[#00ff00] text-xs sm:text-sm px-1 sm:px-2">
+                  ${precios[crypto]?.price?.toLocaleString()}
+                </td>
+                <td className="py-2 text-right font-mono text-[#00ff00] text-xs sm:text-sm">
+                  ${((portfolio[crypto] * (precios[crypto]?.price || 0))).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                </td>
+              </tr>
+            ))
+          }
         </tbody>
         <tfoot>
           <tr className="border-t-2 border-[#00ff00]/30">
