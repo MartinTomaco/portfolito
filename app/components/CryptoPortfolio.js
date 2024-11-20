@@ -50,7 +50,9 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
       if (savedOrder) {
         setCryptoOrder(JSON.parse(savedOrder));
       } else {
-        setCryptoOrder(Object.keys(portfolio));
+        const initialOrder = Object.keys(portfolio);
+        setCryptoOrder(initialOrder);
+        localStorage.setItem('cryptoOrder', JSON.stringify(initialOrder));
       }
     }
   }, [isClient, portfolio]);
@@ -121,12 +123,20 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
         ...prev,
         [symbol]: (prev[symbol] || 0) + amount
       }));
+
+      if (!cryptoOrder.includes(symbol)) {
+        setCryptoOrder(prev => [...prev, symbol]);
+        localStorage.setItem('cryptoOrder', JSON.stringify([...cryptoOrder, symbol]));
+      }
     } else {
       setPortfolio(prev => {
         const newAmount = (prev[symbol] || 0) - amount;
         const newPortfolio = { ...prev };
         if (newAmount <= 0) {
           delete newPortfolio[symbol];
+          const newOrder = cryptoOrder.filter(crypto => crypto !== symbol);
+          setCryptoOrder(newOrder);
+          localStorage.setItem('cryptoOrder', JSON.stringify(newOrder));
         } else {
           newPortfolio[symbol] = newAmount;
         }
