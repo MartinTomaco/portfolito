@@ -36,8 +36,19 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-screen bg-[#0a0a0a]">
       <CryptoMarquee precios={precios} />
-      <div className="flex-1 flex flex-col items-center justify-start mt-20 p-4 md:p-8">
-        <CryptoPortfolio precios={precios} />
+      <div className="flex-1 flex flex-col items-center justify-start mt-20 p-4 md:p-8 w-full">
+        <div className="w-full max-w-2xl">
+          <CryptoPortfolio precios={precios} />
+          
+          <div className="flex gap-4 mt-6 justify-start">
+            <button className="w-12 h-12 rounded-full border-2 border-[#00ff00] text-[#00ff00] hover:bg-[#00ff00]/10 flex items-center justify-center text-xl font-bold transition-all duration-300 hover:shadow-[0_0_15px_#00ff00]">
+              +
+            </button>
+            <button className="w-12 h-12 rounded-full border-2 border-[#00ff00] text-[#00ff00] hover:bg-[#00ff00]/10 flex items-center justify-center text-xl font-bold transition-all duration-300 hover:shadow-[0_0_15px_#00ff00]">
+              -
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
