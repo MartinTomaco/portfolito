@@ -268,6 +268,7 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
         onSubmit={handleModalSubmit}
         type={modalType}
         existingCryptos={Object.keys(portfolio)}
+        portfolio={portfolio}
       />
     </div>
   );

@@ -18,10 +18,11 @@ const symbolToId = {
   'LTC': 'litecoin'
 };
 
-export default function CryptoModal({ isOpen, onClose, onSubmit, type, existingCryptos }) {
+export default function CryptoModal({ isOpen, onClose, onSubmit, type, existingCryptos, portfolio }) {
   const [symbol, setSymbol] = useState('');
   const [amount, setAmount] = useState('');
   const [error, setError] = useState('');
+  const [maxAmount, setMaxAmount] = useState(null);
 
   useEffect(() => {
     if (!isOpen) {
@@ -30,6 +31,16 @@ export default function CryptoModal({ isOpen, onClose, onSubmit, type, existingC
       setAmount('');
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (type === 'remove' && symbol) {
+      const upperSymbol = symbol.toUpperCase();
+      const available = existingCryptos.includes(upperSymbol) ? portfolio[upperSymbol] : 0;
+      setMaxAmount(available);
+    } else {
+      setMaxAmount(null);
+    }
+  }, [symbol, type, existingCryptos, portfolio]);
 
   const handleClickOutside = (e) => {
     if (e.target.classList.contains('modal-overlay')) {
@@ -106,16 +117,30 @@ export default function CryptoModal({ isOpen, onClose, onSubmit, type, existingC
               </datalist>
             )}
           </div>
-          <div className="mb-4">
-            <label className="block text-[#00ff00] mb-2 font-mono">Cantidad</label>
-            <input
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="w-full bg-black border border-[#00ff00] text-[#00ff00] p-2 rounded font-mono"
-              step="any"
-              min="0"
-            />
+          <div className="mb-4 relative">
+            <div className="flex justify-between items-center mb-2">
+              <label className="text-[#00ff00] font-mono">Cantidad</label>
+              {type === 'remove' && maxAmount && (
+                <button
+                  type="button"
+                  onClick={() => setAmount(maxAmount.toString())}
+                  className="text-[#00ff00]/50 hover:text-[#00ff00] font-mono text-sm transition-colors cursor-pointer"
+                >
+                  {maxAmount} Max
+                </button>
+              )}
+            </div>
+            <div className="relative">
+              <input
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="w-full bg-black border border-[#00ff00] text-[#00ff00] p-2 rounded font-mono"
+                step="any"
+                min="0"
+                max={maxAmount || undefined}
+              />
+            </div>
           </div>
           {error && (
             <p className="text-red-500 mb-4 font-mono text-sm">{error}</p>
