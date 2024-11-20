@@ -223,7 +223,7 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
                   ) : (
                     <div className="flex items-center justify-end gap-1 h-full">
                       <span>{portfolio[crypto]}</span>
-                      <span className="opacity-0 group-hover:opacity-100 text-xs">✎</span>
+                      <span className="opacity-0 group-hover:opacity-100 text-xs absolute -right-4">✎</span>
                     </div>
                   )}
                 </td>
