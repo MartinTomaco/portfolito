@@ -79,6 +79,11 @@ tr[draggable="true"]:active {
   cursor: grabbing;
 }
 
+tr[draggable="false"] {
+  cursor: default;
+  user-select: text;
+}
+
 /* Agregar después de la línea 80 */
 /* Ocultar flechas de input number */
 input[type="number"]::-webkit-inner-spin-button,

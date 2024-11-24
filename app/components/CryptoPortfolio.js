@@ -194,11 +194,11 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
             .map((crypto) => (
               <tr 
                 key={crypto} 
-                className="border-b border-[#00ff00]/10 hover:bg-[#00ff00]/5 cursor-move"
-                draggable="true"
-                onDragStart={(e) => handleDragStart(e, crypto)}
+                className={`border-b border-[#00ff00]/10 hover:bg-[#00ff00]/5 ${editando ? '' : 'cursor-move'}`}
+                draggable={!editando}
+                onDragStart={(e) => !editando && handleDragStart(e, crypto)}
                 onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(e, crypto)}
+                onDrop={(e) => !editando && handleDrop(e, crypto)}
               >
                 <td className="py-2 font-mono text-[#00ff00] text-xs sm:text-sm">{crypto}</td>
                 <td 
