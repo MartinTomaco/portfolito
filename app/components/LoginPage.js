@@ -7,17 +7,7 @@ export default function LoginPage({ onLogin, onGuestLogin }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Aquí implementarías la lógica de autenticación real
-    try {
-      // Simulación de login
-      if (email && password) {
-        onLogin({ email, isGuest: false });
-      } else {
-        setError('Por favor completa todos los campos');
-      }
-    } catch (error) {
-      setError('Error al iniciar sesión');
-    }
+    alert('La funcionalidad de inicio de sesión estará disponible próximamente. Por favor, continúe como invitado.');
   };
 
   return (
@@ -31,7 +21,8 @@ export default function LoginPage({ onLogin, onGuestLogin }) {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-black border border-[#00ff00] text-[#00ff00] p-2 rounded font-mono"
+              className="w-full bg-black border border-[#00ff00] text-[#00ff00] p-2 rounded font-mono opacity-50 cursor-not-allowed"
+              disabled
             />
           </div>
           <div>
@@ -40,7 +31,8 @@ export default function LoginPage({ onLogin, onGuestLogin }) {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-black border border-[#00ff00] text-[#00ff00] p-2 rounded font-mono"
+              className="w-full bg-black border border-[#00ff00] text-[#00ff00] p-2 rounded font-mono opacity-50 cursor-not-allowed"
+              disabled
             />
           </div>
           {error && (
@@ -49,9 +41,10 @@ export default function LoginPage({ onLogin, onGuestLogin }) {
           <div className="space-y-4">
             <button
               type="submit"
-              className="w-full px-4 py-2 bg-[#00ff00] text-black rounded hover:bg-[#00ff00]/90 font-mono transition-colors"
+              className="w-full px-4 py-2 bg-[#00ff00]/50 text-black rounded font-mono cursor-not-allowed opacity-50"
+              disabled
             >
-              Iniciar Sesión
+              Iniciar Sesión (Próximamente)
             </button>
             <button
               type="button"
