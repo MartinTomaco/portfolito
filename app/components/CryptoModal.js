@@ -100,7 +100,9 @@ export default function CryptoModal({ isOpen, onClose, onSubmit, type, existingC
         </h2>
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label className="block text-[#00ff00] mb-2 font-mono">Símbolo</label>
+            <label className="block text-[#00ff00] mb-2 font-mono">
+              Símbolo <span className="text-[#00ff00]/50">(BTC, ETH, etc.)</span>
+            </label>
             <input
               type="text"
               value={symbol}
