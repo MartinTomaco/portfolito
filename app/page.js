@@ -111,9 +111,9 @@ export default function Home() {
       <div className="flex justify-end p-4">
         <button
           onClick={handleLogout}
-          className="px-4 py-2 border border-[#00ff00] text-[#00ff00] rounded hover:bg-[#00ff00]/10 font-mono transition-colors"
+          className="text-xs text-[#00ff00]/50 hover:text-[#00ff00] font-mono transition-colors duration-300 flex items-center gap-1"
         >
-          {user?.isGuest ? 'Iniciar Sesión' : 'Cerrar Sesión'}
+          {user?.isGuest ? '⇥ login' : '⇤ logout'}
         </button>
       </div>
       <div className="flex-1 flex flex-col items-center justify-start mt-4 p-4 md:p-8 w-full">
