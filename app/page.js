@@ -116,7 +116,7 @@ export default function Home() {
           {user.isGuest ? 'Iniciar Sesión' : 'Cerrar Sesión'}
         </button>
       </div>
-      <div className="flex-1 flex flex-col items-center justify-start mt-20 p-4 md:p-8 w-full">
+      <div className="flex-1 flex flex-col items-center justify-start mt-4 p-4 md:p-8 w-full">
         <div className="w-full max-w-2xl">
           <CryptoPortfolio precios={precios} setPrecios={setPrecios} />
         </div>
