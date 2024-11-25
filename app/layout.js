@@ -15,6 +15,22 @@ const geistMono = localFont({
 export const metadata = {
   title: "Portfolito",
   description: "un porfolio cripto simple.",
+  openGraph: {
+    title: "Portfolito",
+    description: "un porfolio cripto simple.",
+    url: "https://portfolito-matrix.vercel.app/",
+    siteName: "Portfolito",
+    images: [
+      {
+        url: "/icon_portfolito.svg",
+        width: 800,
+        height: 600,
+        alt: "Descripción de la imagen",
+      },
+    ],
+    locale: "es_ES",
+    type: "website",
+  },
 };
 
 export default function RootLayout({ children }) {
