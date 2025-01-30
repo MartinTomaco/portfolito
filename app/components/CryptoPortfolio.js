@@ -184,7 +184,7 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
           <tr className="border-b border-[#00ff00]/20">
             <th className="py-2 text-left text-[#00ff00] font-mono text-xs sm:text-sm">Crypto</th>
             <th className="py-2 text-right text-[#00ff00] font-mono text-xs sm:text-sm px-1 sm:px-2">Cant.</th>
-            <th className="py-2 text-right text-[#00ff00] font-mono text-xs sm:text-sm px-1 sm:px-2">Precio</th>
+            <th className="py-2 text-right text-[#00ff00] font-mono text-xs sm:text-sm px-1 sm:px-2">Precio 24h %</th>
             <th className="py-2 text-right text-[#00ff00] font-mono text-xs sm:text-sm">Total</th>
           </tr>
         </thead>
@@ -226,12 +226,16 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
                   <div className="flex items-center justify-end gap-2">
                     <span>${precios[crypto]?.price?.toLocaleString()}</span>
                     <span className={`${
-                      precios[crypto]?.change24h > 0 
-                        ? 'text-[#00ff00]' 
-                        : 'text-[#ff0000]'
+                      precios[crypto]?.change24h === undefined
+                        ? 'text-[#00ff00]/50'
+                        : precios[crypto]?.change24h > 0 
+                          ? 'text-[#00ff00]' 
+                          : 'text-[#ff0000]'
                     }`}>
-                      {precios[crypto]?.change24h > 0 ? '+' : ''}
-                      {precios[crypto]?.change24h?.toFixed(2)}%
+                      {precios[crypto]?.change24h === undefined
+                        ? 'N/A'
+                        : `${precios[crypto]?.change24h > 0 ? '+' : ''}${precios[crypto]?.change24h.toFixed(2)}%`
+                      }
                     </span>
                   </div>
                 </td>
