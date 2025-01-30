@@ -223,7 +223,17 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
                   )}
                 </td>
                 <td className="py-2 text-right font-mono text-[#00ff00] text-xs sm:text-sm px-1 sm:px-2">
-                  ${precios[crypto]?.price?.toLocaleString()}
+                  <div className="flex items-center justify-end gap-2">
+                    <span>${precios[crypto]?.price?.toLocaleString()}</span>
+                    <span className={`${
+                      precios[crypto]?.change24h > 0 
+                        ? 'text-[#00ff00]' 
+                        : 'text-[#ff0000]'
+                    }`}>
+                      {precios[crypto]?.change24h > 0 ? '+' : ''}
+                      {precios[crypto]?.change24h?.toFixed(2)}%
+                    </span>
+                  </div>
                 </td>
                 <td className="py-2 text-right font-mono text-[#00ff00] text-xs sm:text-sm">
                   ${((portfolio[crypto] * (precios[crypto]?.price || 0))).toLocaleString(undefined, {maximumFractionDigits: 0})}
