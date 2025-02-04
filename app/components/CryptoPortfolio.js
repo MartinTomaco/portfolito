@@ -16,7 +16,13 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState('add');
   const [cryptoOrder, setCryptoOrder] = useState([]);
-  const [hideBalances, setHideBalances] = useState(false);
+  const [hideBalances, setHideBalances] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('hideBalances');
+      return saved ? JSON.parse(saved) : false;
+    }
+    return false;
+  });
 
   useEffect(() => {
     setIsClient(true);
@@ -52,6 +58,12 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
       }
     }
   }, [isClient, portfolio]);
+
+  useEffect(() => {
+    if (isClient) {
+      localStorage.setItem('hideBalances', JSON.stringify(hideBalances));
+    }
+  }, [hideBalances, isClient]);
 
   const calcularTotal = () => {
     const total = Object.entries(portfolio).reduce((acc, [crypto, cantidad]) => {
