@@ -226,46 +226,57 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
             <th className="py-2 text-left font-mono text-[#00ff00]/70 font-normal text-xs sm:text-sm w-[30%]">Crypto</th>
             <th className="py-2 text-right font-mono text-[#00ff00]/70 font-normal text-xs sm:text-sm w-[20%]">Cant.</th>
             <th className="py-2 text-right font-mono text-[#00ff00]/70 font-normal text-xs sm:text-sm w-[25%]">Precio 24h %</th>
-            <th className="py-2 text-right font-mono text-[#00ff00]/70 font-normal text-xs sm:text-sm w-[25%]">Total USD</th>
+            <th className="py-2 text-right font-mono text-[#00ff00]/70 font-normal text-xs sm:text-sm w-[25%]">Total (USD %)</th>
           </tr>
         </thead>
         <tbody>
-          {cryptoOrder.map((crypto) => (
-            <tr key={crypto} className="border-b border-[#00ff00]/10">
-              <td className="py-2 font-mono text-[#00ff00] text-xs sm:text-sm">{crypto}</td>
-              <td className="py-2 text-right font-mono text-[#00ff00] text-xs sm:text-sm min-w-[80px]">
-                <div className="flex items-center justify-end gap-1">
-                  <span className="inline-block min-w-[40px] text-right">
-                    {hideBalances ? '***' : portfolio[crypto]}
+          {cryptoOrder.map((crypto) => {
+            const cryptoTotal = portfolio[crypto] * (precios[crypto]?.price || 0);
+            const participationPercentage = totalPortfolio > 0 ? (cryptoTotal / totalPortfolio) * 100 : 0;
+            return (
+              <tr key={crypto} className="border-b border-[#00ff00]/10">
+                <td className="py-2 font-mono text-[#00ff00] text-xs sm:text-sm">{crypto}</td>
+                <td className="py-2 text-right font-mono text-[#00ff00] text-xs sm:text-sm min-w-[80px]">
+                  <div className="flex items-center justify-end gap-1">
+                    <span className="inline-block min-w-[40px] text-right">
+                      {hideBalances ? '***' : portfolio[crypto]}
+                    </span>
+                  </div>
+                </td>
+                <td className="py-2 text-right font-mono text-[#00ff00] text-xs sm:text-sm min-w-[120px]">
+                  <div className="flex items-center justify-end gap-2">
+                    <span className="inline-block min-w-[60px] text-right">
+                      ${precios[crypto]?.price?.toLocaleString()}
+                    </span>
+                    <span className={`inline-block min-w-[60px] text-right ${
+                      precios[crypto]?.change24h === undefined
+                        ? 'text-[#00ff00]/50'
+                        : precios[crypto]?.change24h > 0 
+                          ? 'text-[#00ff00]' 
+                          : 'text-[#ff0000]'
+                    }`}>
+                      {precios[crypto]?.change24h === undefined
+                        ? 'N/A'
+                        : `${precios[crypto]?.change24h > 0 ? '+' : ''}${precios[crypto]?.change24h.toFixed(2)}%`
+                      }
+                    </span>
+                  </div>
+                </td>
+                <td className="py-2 text-right font-mono text-[#00ff00] text-xs sm:text-sm min-w-[100px]">
+                  <span className="inline-block min-w-[80px] text-right">
+                    {hideBalances ? '***' : (
+                      <>
+                        ${cryptoTotal.toLocaleString(undefined, {maximumFractionDigits: 0})}
+                        <span className="text-[#00ff00]/70 ml-2">
+                          {participationPercentage.toFixed(2)}%
+                        </span>
+                      </>
+                    )}
                   </span>
-                </div>
-              </td>
-              <td className="py-2 text-right font-mono text-[#00ff00] text-xs sm:text-sm min-w-[120px]">
-                <div className="flex items-center justify-end gap-2">
-                  <span className="inline-block min-w-[60px] text-right">
-                    ${precios[crypto]?.price?.toLocaleString()}
-                  </span>
-                  <span className={`inline-block min-w-[60px] text-right ${
-                    precios[crypto]?.change24h === undefined
-                      ? 'text-[#00ff00]/50'
-                      : precios[crypto]?.change24h > 0 
-                        ? 'text-[#00ff00]' 
-                        : 'text-[#ff0000]'
-                  }`}>
-                    {precios[crypto]?.change24h === undefined
-                      ? 'N/A'
-                      : `${precios[crypto]?.change24h > 0 ? '+' : ''}${precios[crypto]?.change24h.toFixed(2)}%`
-                    }
-                  </span>
-                </div>
-              </td>
-              <td className="py-2 text-right font-mono text-[#00ff00] text-xs sm:text-sm min-w-[100px]">
-                <span className="inline-block min-w-[80px] text-right">
-                  ${hideBalances ? '***' : ((portfolio[crypto] * (precios[crypto]?.price || 0))).toLocaleString(undefined, {maximumFractionDigits: 0})}
-                </span>
-              </td>
-            </tr>
-          ))}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
         <tfoot>
           <tr className="border-t-2 border-[#00ff00]/30">
