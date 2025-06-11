@@ -246,7 +246,7 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
                 <td className="py-2 text-right font-mono text-[#00ff00] text-xs sm:text-sm min-w-[120px]">
                   <div className="flex items-center justify-end gap-2">
                     <span className="inline-block min-w-[60px] text-right">
-                      ${precios[crypto]?.price?.toLocaleString()}
+                      ${precios[crypto]?.price?.toString()}
                     </span>
                     <span className={`inline-block min-w-[60px] text-right ${
                       precios[crypto]?.change24h === undefined
@@ -266,9 +266,9 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
                   <span className="inline-block min-w-[80px] text-right">
                     {hideBalances ? '***' : (
                       <>
-                        ${cryptoTotal.toLocaleString(undefined, {maximumFractionDigits: 0})}
+                        ${cryptoTotal.toFixed(1)}
                         <span className="text-[#00ff00]/70 ml-2">
-                          {participationPercentage.toFixed(2)}%
+                          {participationPercentage.toFixed(1)}%
                         </span>
                       </>
                     )}
@@ -285,7 +285,7 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
             </td>
             <td className="py-2 text-right font-mono text-[#00ff00] font-bold text-xs sm:text-sm min-w-[100px]">
               <span className="inline-block min-w-[80px] text-right">
-                ${hideBalances ? '***' : totalPortfolio.toLocaleString(undefined, {maximumFractionDigits: 0})}
+                ${hideBalances ? '***' : totalPortfolio.toFixed(1)}
               </span>
             </td>
           </tr>

@@ -10,7 +10,7 @@ export default function CryptoMarquee({ precios }) {
   const [finalPosition, setFinalPosition] = useState(0);
   
   const formatChange = (change) => {
-    return change > 0 ? `+${change.toFixed(2)}%` : `${change.toFixed(2)}%`;
+    return change > 0 ? `+${change.toFixed(1)}%` : `${change.toFixed(1)}%`;
   };
 
   const handleMouseDown = (e) => {
@@ -65,7 +65,7 @@ export default function CryptoMarquee({ precios }) {
                 key={index}
                 className="mx-2 md:mx-8 text-[#00ff00] font-mono inline-block text-sm md:text-base"
               >
-                <span>{symbol}: ${precios[symbol]?.price?.toLocaleString() || '0'}</span>
+                <span>{symbol}: ${precios[symbol]?.price?.toString() || '0'}</span>
                 <span className={`ml-1 md:ml-2 ${
                   precios[symbol]?.change24h > 0 
                     ? 'text-[#00ff00] drop-shadow-[0_0_5px_#00ff00]' 
@@ -80,4 +80,4 @@ export default function CryptoMarquee({ precios }) {
       </div>
     </div>
   );
-} 
+}
