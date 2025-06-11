@@ -178,6 +178,14 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
     }
   };
 
+  const formatTotal = (value) => {
+    const absValue = Math.abs(value);
+    if (absValue < 1000) {
+      return value.toFixed(1);
+    }
+    return Math.round(value).toString();
+  };
+
   if (!isClient) {
     return null; // o un estado de carga
   }
@@ -266,7 +274,7 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
                   <span className="inline-block min-w-[80px] text-right">
                     {hideBalances ? '***' : (
                       <>
-                        ${cryptoTotal.toFixed(1)}
+                        ${formatTotal(cryptoTotal)}
                         <span className="text-[#00ff00]/70 ml-2">
                           {participationPercentage.toFixed(1)}%
                         </span>
@@ -285,7 +293,7 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
             </td>
             <td className="py-2 text-right font-mono text-[#00ff00] font-bold text-xs sm:text-sm min-w-[100px]">
               <span className="inline-block min-w-[80px] text-right">
-                ${hideBalances ? '***' : totalPortfolio.toFixed(1)}
+                ${hideBalances ? '***' : formatTotal(totalPortfolio)}
               </span>
             </td>
           </tr>
