@@ -73,22 +73,37 @@ export default function Home() {
         const response = await fetch(
           `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`
         );
+        
+        if (!response.ok) {
+          console.warn('Error al obtener precios de la API:', response.status);
+          return;
+        }
+        
         const data = await response.json();
         
-        const preciosFormateados = {};
-        allSymbols.forEach(symbol => {
-          const id = symbolToId[symbol] || symbol.toLowerCase();
-          if (data[id]) {
-            preciosFormateados[symbol] = {
-              price: data[id].usd,
-              change24h: data[id].usd_24h_change
-            };
-          }
-        });
+        if (!data || typeof data !== 'object') {
+          console.warn('Respuesta inválida de la API de precios');
+          return;
+        }
         
-        setPrecios(preciosFormateados);
+        setPrecios(prevPrecios => {
+          const preciosFormateados = { ...prevPrecios };
+          allSymbols.forEach(symbol => {
+            const id = symbolToId[symbol] || symbol.toLowerCase();
+            if (data[id] && data[id].usd !== undefined) {
+              preciosFormateados[symbol] = {
+                price: data[id].usd,
+                change24h: data[id].usd_24h_change
+              };
+            }
+            // Si no se encuentra el precio, mantener el precio anterior si existe
+            // o dejar null si no existe
+          });
+          return preciosFormateados;
+        });
       } catch (error) {
-        console.error('Error al obtener precios:', error);
+        console.warn('Error al obtener precios:', error.message);
+        // No lanzar el error, solo registrar y continuar
       }
     };
 

@@ -67,7 +67,9 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
 
   const calcularTotal = () => {
     const total = Object.entries(portfolio).reduce((acc, [crypto, cantidad]) => {
-      return acc + (cantidad * (precios[crypto]?.price || 0));
+      const precio = precios[crypto];
+      const precioValido = precio && precio !== null && precio.price !== null && precio.price !== undefined;
+      return acc + (cantidad * (precioValido ? precio.price : 0));
     }, 0);
     setTotalPortfolio(total);
   };
@@ -94,36 +96,66 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
       const searchResponse = await fetch(
         `https://api.coingecko.com/api/v3/search?query=${symbol}`
       );
+      
+      if (!searchResponse.ok) {
+        console.warn(`No se pudo buscar ${symbol}:`, searchResponse.status);
+        return null;
+      }
+      
       const searchData = await searchResponse.json();
       
-      if (searchData.coins.length > 0) {
-        const coinId = searchData.coins[0].id;
-        const response = await fetch(
-          `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd&include_24hr_change=true`
-        );
-        const data = await response.json();
-        
-        if (data[coinId]) {
-          return {
-            price: data[coinId].usd,
-            change24h: data[coinId].usd_24h_change
-          };
-        }
+      if (!searchData || !searchData.coins || searchData.coins.length === 0) {
+        console.warn(`No se encontró información para ${symbol}`);
+        return null;
       }
+      
+      const coinId = searchData.coins[0].id;
+      const response = await fetch(
+        `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd&include_24hr_change=true`
+      );
+      
+      if (!response.ok) {
+        console.warn(`No se pudo obtener precio para ${symbol}:`, response.status);
+        return null;
+      }
+      
+      const data = await response.json();
+      
+      if (data && data[coinId] && data[coinId].usd !== undefined) {
+        return {
+          price: data[coinId].usd,
+          change24h: data[coinId].usd_24h_change
+        };
+      }
+      
       return null;
     } catch (error) {
-      console.error('Error al obtener precio:', error);
+      console.warn(`Error al obtener precio para ${symbol}:`, error.message);
       return null;
     }
   };
 
   const handleModalSubmit = async (symbol, amount) => {
     if (modalType === 'add') {
-      const newPrice = await fetchNewCryptoPrice(symbol);
-      if (newPrice) {
+      try {
+        const newPrice = await fetchNewCryptoPrice(symbol);
+        if (newPrice) {
+          setPrecios(prev => ({
+            ...prev,
+            [symbol]: newPrice
+          }));
+        } else {
+          // Si no se encuentra precio, agregar el símbolo sin precio para que se muestre como "Sin precio"
+          setPrecios(prev => ({
+            ...prev,
+            [symbol]: null
+          }));
+        }
+      } catch (error) {
+        console.warn(`Error al obtener precio para ${symbol}, agregando sin precio`);
         setPrecios(prev => ({
           ...prev,
-          [symbol]: newPrice
+          [symbol]: null
         }));
       }
       
@@ -239,7 +271,8 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
         </thead>
         <tbody>
           {cryptoOrder.map((crypto) => {
-            const cryptoTotal = portfolio[crypto] * (precios[crypto]?.price || 0);
+            const precio = precios[crypto]?.price;
+            const cryptoTotal = precio && precio !== null ? portfolio[crypto] * precio : 0;
             const participationPercentage = totalPortfolio > 0 ? (cryptoTotal / totalPortfolio) * 100 : 0;
             return (
               <tr key={crypto} className="border-b border-[#00ff00]/10">
@@ -254,16 +287,19 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
                 <td className="py-2 text-right font-mono text-[#00ff00] text-xs sm:text-sm min-w-[120px]">
                   <div className="flex items-center justify-end gap-2">
                     <span className="inline-block min-w-[60px] text-right">
-                      ${precios[crypto]?.price?.toString()}
+                      {precios[crypto] && precios[crypto] !== null && precios[crypto].price !== null && precios[crypto].price !== undefined
+                        ? `$${precios[crypto].price.toString()}`
+                        : <span className="text-[#00ff00]/50">Sin precio</span>
+                      }
                     </span>
                     <span className={`inline-block min-w-[60px] text-right ${
-                      precios[crypto]?.change24h === undefined
+                      !precios[crypto] || precios[crypto] === null || precios[crypto]?.change24h === undefined || precios[crypto]?.change24h === null || typeof precios[crypto]?.change24h !== 'number'
                         ? 'text-[#00ff00]/50'
                         : precios[crypto]?.change24h > 0 
                           ? 'text-[#00ff00]' 
                           : 'text-[#ff0000]'
                     }`}>
-                      {precios[crypto]?.change24h === undefined
+                      {!precios[crypto] || precios[crypto] === null || precios[crypto]?.change24h === undefined || precios[crypto]?.change24h === null || typeof precios[crypto]?.change24h !== 'number'
                         ? 'N/A'
                         : `${precios[crypto]?.change24h > 0 ? '+' : ''}${precios[crypto]?.change24h.toFixed(2)}%`
                       }
@@ -274,10 +310,19 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
                   <span className="inline-block min-w-[80px] text-right">
                     {hideBalances ? '***' : (
                       <>
-                        ${formatTotal(cryptoTotal)}
-                        <span className="text-[#00ff00]/70 ml-2">
-                          {participationPercentage.toFixed(1)}%
-                        </span>
+                        {precios[crypto] && precios[crypto] !== null && precios[crypto].price !== null && precios[crypto].price !== undefined
+                          ? (
+                            <>
+                              ${formatTotal(cryptoTotal)}
+                              <span className="text-[#00ff00]/70 ml-2">
+                                {participationPercentage.toFixed(1)}%
+                              </span>
+                            </>
+                          )
+                          : (
+                            <span className="text-[#00ff00]/50">Sin precio</span>
+                          )
+                        }
                       </>
                     )}
                   </span>
