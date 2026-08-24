@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "jest"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.3",
@@ -15,8 +16,13 @@
     "react-dom": "19.0.0-rc-66855b96-20241106"
   },
   "devDependencies": {
+    "@babel/core": "^8.0.1",
+    "@babel/preset-env": "^8.0.2",
+    "@jest/globals": "^30.4.1",
+    "babel-jest": "^30.4.1",
     "eslint": "^8",
     "eslint-config-next": "15.0.3",
+    "jest": "^30.4.2",
     "postcss": "^8",
     "tailwindcss": "^3.4.1"
   }
