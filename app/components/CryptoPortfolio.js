@@ -81,7 +81,7 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
   const handleSave = (crypto, valor) => {
     setPortfolio(prev => ({
       ...prev,
-      [crypto]: parseFloat(valor) || 0
+      [crypto]: formatCryptoAmount(parseFloat(valor) || 0)
     }));
     setEditando(null);
   };
@@ -161,7 +161,7 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
       
       setPortfolio(prev => ({
         ...prev,
-        [symbol]: (prev[symbol] || 0) + amount
+        [symbol]: formatCryptoAmount((prev[symbol] || 0) + amount)
       }));
 
       if (!cryptoOrder.includes(symbol)) {
@@ -170,7 +170,7 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
       }
     } else {
       setPortfolio(prev => {
-        const newAmount = (prev[symbol] || 0) - amount;
+        const newAmount = formatCryptoAmount((prev[symbol] || 0) - amount);
         const newPortfolio = { ...prev };
         if (newAmount <= 0) {
           delete newPortfolio[symbol];
@@ -209,6 +209,8 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
       localStorage.setItem('cryptoOrder', JSON.stringify(newOrder));
     }
   };
+
+  const formatCryptoAmount = (value) => parseFloat(value.toPrecision(10));
 
   const formatTotal = (value) => {
     const absValue = Math.abs(value);
@@ -280,7 +282,7 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
                 <td className="py-2 text-right font-mono text-[#00ff00] text-xs sm:text-sm min-w-[80px]">
                   <div className="flex items-center justify-end gap-1">
                     <span className="inline-block min-w-[40px] text-right">
-                      {hideBalances ? '***' : portfolio[crypto]}
+                      {hideBalances ? '***' : formatCryptoAmount(portfolio[crypto])}
                     </span>
                   </div>
                 </td>
