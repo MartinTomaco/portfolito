@@ -92,6 +92,111 @@ input[type="number"]::-webkit-outer-spin-button {
   margin: 0;
 }
 
+/* Simulación de precios por scroll */
+@keyframes sim-cursor {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.sim-cursor {
+  animation: sim-cursor 1.1s steps(1) infinite;
+}
+
+.sim-row {
+  cursor: pointer;
+}
+
+.sim-row:hover {
+  background-color: #00ff000d;
+}
+
+.sim-price-cell {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.sim-value-cell {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Delta flotante junto al precio simulado y junto al total.
+   absolute: no suma ancho ni alto a la fila.
+   Ambas variantes se anclan a 8px del borde de su PROPIA fila: con `bottom`
+   la caja crece hacia arriba y con `top` hacia abajo, asi que los dos offsets
+   son el mismo calc(). Vive en el padding (py-2 = 8px), sin pisar el precio
+   de al lado ni la fila vecina. */
+.sim-float {
+  position: absolute;
+  right: 3px;
+  font-size: 8px;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 1;
+  text-shadow: 0 0 5px currentColor;
+}
+
+.sim-float-up {
+  bottom: calc(100% - 8px);
+}
+
+.sim-float-down {
+  top: calc(100% - 8px);
+}
+
+/* En desktop el flotante va un poco mas grande, porque el texto de la fila
+   tambien (text-sm). El offset acompasa al nuevo alto: con 10px entra entero
+   en la fila en vez de colgarse del borde. Los 2px que se mete en la caja de
+   linea caen en el interlineado (text-sm deja ~3px de leading), nunca sobre
+   los glifos. Es absolute, asi que la fila no cambia de alto ni se parte. */
+@media (min-width: 640px) {
+  .sim-float {
+    font-size: 10px;
+  }
+
+  .sim-float-up {
+    bottom: calc(100% - 10px);
+  }
+
+  .sim-float-down {
+    top: calc(100% - 10px);
+  }
+}
+
+/* scroll horizontal invisible: la tabla se puede desplazar con el dedo
+   sin dejar la barrita gris abajo del total */
+.table-scroll {
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.table-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* En mobile, arrastrar el dedo sobre la tabla seleccionaba el texto y
+   competia con el swipe de simulacion y con el scroll de la pagina.
+   -webkit-touch-callout evita ademas el menu de copiar al mantener pulsado
+   en iOS. En desktop se sigue pudiendo seleccionar y copiar. */
+@media (max-width: 639px) {
+  .table-scroll {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+}
+
 input[type="number"] {
   -moz-appearance: textfield;
 }

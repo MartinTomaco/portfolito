@@ -18,7 +18,7 @@ const symbolToId = {
   'LTC': 'litecoin'
 };
 
-export default function CryptoModal({ isOpen, onClose, onSubmit, type, existingCryptos, portfolio }) {
+export default function CryptoModal({ isOpen, onClose, onSubmit, type, existingCryptos, portfolio, initialSymbol = '' }) {
   const [symbol, setSymbol] = useState('');
   const [amount, setAmount] = useState('');
   const [error, setError] = useState('');
@@ -31,6 +31,12 @@ export default function CryptoModal({ isOpen, onClose, onSubmit, type, existingC
       setAmount('');
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setSymbol(initialSymbol ? initialSymbol.toUpperCase() : '');
+    }
+  }, [isOpen, initialSymbol]);
 
   useEffect(() => {
     if (type === 'remove' && symbol) {
