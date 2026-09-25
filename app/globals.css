@@ -155,21 +155,22 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 /* En desktop el flotante va un poco mas grande, porque el texto de la fila
-   tambien (text-sm). El offset acompasa al nuevo alto: con 10px entra entero
-   en la fila en vez de colgarse del borde. Los 2px que se mete en la caja de
-   linea caen en el interlineado (text-sm deja ~3px de leading), nunca sobre
-   los glifos. Es absolute, asi que la fila no cambia de alto ni se parte. */
+   tambien (text-sm). Para que no quede pegado al borde de la fila, las
+   celdas de desktop pasan a sm:py-3: eso agranda la fila de 36px a 44px y le
+   da 15px de aire entre el borde y los digitos, de los cuales 10px los ocupa
+   el flotante y quedan ~2.5px de separacion de cada lado. El offset acompasa
+   ese padding. Es absolute, asi que la fila no se parte en dos lineas. */
 @media (min-width: 640px) {
   .sim-float {
     font-size: 10px;
   }
 
   .sim-float-up {
-    bottom: calc(100% - 10px);
+    bottom: calc(100% - 13px);
   }
 
   .sim-float-down {
-    top: calc(100% - 10px);
+    top: calc(100% - 13px);
   }
 }
 

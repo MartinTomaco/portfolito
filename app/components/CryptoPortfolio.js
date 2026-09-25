@@ -418,9 +418,9 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
       <table ref={tableRef} className="w-full border-collapse">
         <thead>
           <tr className="border-b-2 border-[#00ff00]/30">
-            <th className="py-2 text-left font-mono text-[#00ff00]/70 font-normal text-xs sm:text-sm w-[30%]">Crypto</th>
-            <th className="py-2 text-right font-mono text-[#00ff00]/70 font-normal text-xs sm:text-sm w-[20%]">Cant.</th>
-            <th className="py-2 text-right font-mono text-[#00ff00]/70 font-normal text-xs sm:text-sm w-[25%] whitespace-nowrap">
+            <th className="py-2 sm:py-3 text-left font-mono text-[#00ff00]/70 font-normal text-xs sm:text-sm w-[30%]">Crypto</th>
+            <th className="py-2 sm:py-3 text-right font-mono text-[#00ff00]/70 font-normal text-xs sm:text-sm w-[20%]">Cant.</th>
+            <th className="py-2 sm:py-3 text-right font-mono text-[#00ff00]/70 font-normal text-xs sm:text-sm w-[25%] whitespace-nowrap">
               {simulacionActiva ? (
                 <span title="columna en modo simulación">
                   <span className="line-through text-[#00ff00]/40">24h</span>
@@ -431,7 +431,7 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
                 'Precio 24h %'
               )}
             </th>
-            <th className="py-2 text-right font-mono text-[#00ff00]/70 font-normal text-xs sm:text-sm w-[25%]">Total (USD %)</th>
+            <th className="py-2 sm:py-3 text-right font-mono text-[#00ff00]/70 font-normal text-xs sm:text-sm w-[25%]">Total (USD %)</th>
           </tr>
         </thead>
         <tbody>
@@ -456,7 +456,7 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
                 onClick={() => handleSelectRow(crypto)}
                 className={`border-b border-[#00ff00]/10 ${realPrice !== null ? 'sim-row' : ''} ${isArmed || isSimulated ? 'bg-[#00ff00]/5' : ''} transition-colors duration-200`}
               >
-                <td className="py-2 font-mono text-[#00ff00] text-xs sm:text-sm">
+                <td className="py-2 sm:py-3 font-mono text-[#00ff00] text-xs sm:text-sm">
                   <span className="inline-flex items-center">
                     <span
                       aria-hidden="true"
@@ -467,7 +467,7 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
                     {crypto}
                   </span>
                 </td>
-                <td className="py-2 text-right font-mono text-[#00ff00] text-xs sm:text-sm min-w-[56px] sm:min-w-[80px]">
+                <td className="py-2 sm:py-3 text-right font-mono text-[#00ff00] text-xs sm:text-sm min-w-[56px] sm:min-w-[80px]">
                   <div className="flex items-center justify-end gap-1">
                     <span className="inline-block min-w-[40px] text-right">
                       {hideBalances ? '***' : formatCryptoAmount(amount)}
@@ -481,7 +481,7 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
                   onPointerUp={handleSwipeEnd}
                   onPointerCancel={handleSwipeEnd}
                   title={isArmed ? 'Girá la rueda para ajustar este precio' : 'Click para simular este precio'}
-                  className={`py-2 text-right font-mono text-[#00ff00] text-xs sm:text-sm min-w-[104px] sm:min-w-[120px] relative ${isArmed ? 'sim-price-cell cursor-ns-resize' : ''}`}
+                  className={`py-2 sm:py-3 text-right font-mono text-[#00ff00] text-xs sm:text-sm min-w-[104px] sm:min-w-[120px] relative ${isArmed ? 'sim-price-cell cursor-ns-resize' : ''}`}
                 >
                   {isSimulated && (
                     <span
@@ -525,7 +525,7 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
                   onPointerMove={isArmed ? handleSwipeMove : undefined}
                   onPointerUp={isArmed ? handleSwipeEnd : undefined}
                   onPointerCancel={isArmed ? handleSwipeEnd : undefined}
-                  className={`py-2 text-right font-mono text-[#00ff00] text-xs sm:text-sm min-w-[56px] sm:min-w-[100px] ${isArmed ? 'sim-value-cell' : ''}`}
+                  className={`py-2 sm:py-3 text-right font-mono text-[#00ff00] text-xs sm:text-sm min-w-[56px] sm:min-w-[100px] ${isArmed ? 'sim-value-cell' : ''}`}
                 >
                   <span className="inline-block min-w-[48px] sm:min-w-[80px] text-right whitespace-nowrap">
                     {hideBalances ? '***' : (
@@ -553,10 +553,10 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
         </tbody>
         <tfoot>
           <tr className="border-t-2 border-[#00ff00]/30">
-            <td colSpan="3" className="py-2 text-right font-mono text-[#00ff00] font-bold text-xs sm:text-sm">
+            <td colSpan="3" className="py-2 sm:py-3 text-right font-mono text-[#00ff00] font-bold text-xs sm:text-sm">
               Total:
             </td>
-            <td className="py-2 text-right font-mono text-[#00ff00] font-bold text-xs sm:text-sm min-w-[64px] sm:min-w-[100px] relative">
+            <td className="py-2 sm:py-3 text-right font-mono text-[#00ff00] font-bold text-xs sm:text-sm min-w-[64px] sm:min-w-[100px] relative">
               {snapshot.hasSim && !hideBalances && (
                 <span
                   aria-hidden="true"
