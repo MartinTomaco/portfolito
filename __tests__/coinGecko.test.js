@@ -2,11 +2,18 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import {
   KNOWN_SYMBOL_TO_ID,
   resolveUnknownSymbols,
+  isResolvableSymbol,
   searchCoinGeckoIds,
   buildSymbolToIdMap,
   fetchPricesByIds,
   formatPrices,
-  resolveAndFetchPrecios
+  resolveAndFetchPrecios,
+  readPriceCache,
+  writePriceCache,
+  shouldRefetchOnMount,
+  PRECIOS_CACHE_KEY,
+  PRECIO_REFRESH_MS,
+  PRECIO_RECACHE_MS
 } from '../app/utils/coinGecko.js';
 
 describe('resolveUnknownSymbols', () => {
@@ -379,5 +386,159 @@ describe('resolveAndFetchPrecios', () => {
     });
 
     expect(saveCache).not.toHaveBeenCalled();
+  });
+});
+
+// fakeStorage con la misma interfaz que se le pasa a los helpers: alcanza con
+// getItem/setItem.
+function fakeStorage(initial = {}) {
+  const store = { ...initial };
+  return {
+    store,
+    getItem: (key) => (key in store ? store[key] : null),
+    setItem: (key, value) => { store[key] = value; }
+  };
+}
+
+describe('writePriceCache / readPriceCache', () => {
+  const precios = { BTC: { price: 40000, change24h: 1.5 } };
+
+  it('round-trips the prices it just wrote', () => {
+    const storage = fakeStorage();
+    const now = 1_000_000;
+
+    writePriceCache(precios, storage, now);
+    const result = readPriceCache(storage, now);
+
+    expect(result).toEqual({ timestamp: now, precios, age: 0 });
+  });
+
+  it('stores under the shared cache key', () => {
+    const storage = fakeStorage();
+    writePriceCache(precios, storage, 0);
+    expect(storage.store[PRECIOS_CACHE_KEY]).toBeDefined();
+  });
+
+  it('returns the cache while it is fresh', () => {
+    const storage = fakeStorage();
+    writePriceCache(precios, storage, 0);
+
+    const justUnder = readPriceCache(storage, PRECIO_REFRESH_MS - 1);
+    expect(justUnder).not.toBeNull();
+    expect(justUnder.precios).toEqual(precios);
+    expect(justUnder.age).toBe(PRECIO_REFRESH_MS - 1);
+  });
+
+  it('returns null once the cache is older than the refresh window', () => {
+    const storage = fakeStorage();
+    writePriceCache(precios, storage, 0);
+
+    expect(readPriceCache(storage, PRECIO_REFRESH_MS)).toBeNull();
+    expect(readPriceCache(storage, PRECIO_REFRESH_MS + 1)).toBeNull();
+  });
+
+  it('returns null when there is no cache at all', () => {
+    expect(readPriceCache(fakeStorage(), 0)).toBeNull();
+  });
+
+  it('returns null on unparseable JSON instead of throwing', () => {
+    const storage = fakeStorage({ [PRECIOS_CACHE_KEY]: '{{{no json' });
+    expect(readPriceCache(storage, 0)).toBeNull();
+  });
+
+  it('rejects a cache that is missing its fields', () => {
+    const noTimestamp = fakeStorage({ [PRECIOS_CACHE_KEY]: JSON.stringify({ precios }) });
+    const noPrecios = fakeStorage({ [PRECIOS_CACHE_KEY]: JSON.stringify({ timestamp: 0 }) });
+    const badTypes = fakeStorage({
+      [PRECIOS_CACHE_KEY]: JSON.stringify({ timestamp: 'ayer', precios })
+    });
+
+    expect(readPriceCache(noTimestamp, 0)).toBeNull();
+    expect(readPriceCache(noPrecios, 0)).toBeNull();
+    expect(readPriceCache(badTypes, 0)).toBeNull();
+  });
+
+  it('rejects a cache stamped in the future (reloj movido)', () => {
+    const storage = fakeStorage();
+    writePriceCache(precios, storage, 10_000);
+    expect(readPriceCache(storage, 0)).toBeNull();
+  });
+
+  it('survives a storage that throws on getItem', () => {
+    const broken = {
+      getItem: () => { throw new Error('bloqueado'); },
+      setItem: () => { throw new Error('bloqueado'); }
+    };
+
+    expect(readPriceCache(broken, 0)).toBeNull();
+    expect(() => writePriceCache(precios, broken, 0)).not.toThrow();
+  });
+});
+
+describe('isResolvableSymbol', () => {
+  it('resolves symbols from the known map without a network call', () => {
+    expect(isResolvableSymbol('BTC')).toBe(true);
+    expect(isResolvableSymbol('ETH')).toBe(true);
+    expect(isResolvableSymbol('XRP')).toBe(true);
+  });
+
+  it('resolves symbols that were cached from an earlier search', () => {
+    expect(isResolvableSymbol('WEIRD', { WEIRD: 'weird-coin' })).toBe(true);
+  });
+
+  it('does not resolve unknown symbols', () => {
+    expect(isResolvableSymbol('NOPE')).toBe(false);
+    expect(isResolvableSymbol('NOPE', { OTHER: 'x' })).toBe(false);
+  });
+
+  it('defaults the cache to empty', () => {
+    expect(isResolvableSymbol('NOPE')).toBe(false);
+  });
+});
+
+describe('shouldRefetchOnMount', () => {
+  it('refetches when there is no cache at all', () => {
+    expect(shouldRefetchOnMount(null)).toBe(true);
+    expect(shouldRefetchOnMount(undefined)).toBe(true);
+  });
+
+  it('refetches when the cache is younger than a minute', () => {
+    expect(shouldRefetchOnMount({ age: 0 })).toBe(true);
+    expect(shouldRefetchOnMount({ age: 30_000 })).toBe(true);
+    expect(shouldRefetchOnMount({ age: PRECIO_RECACHE_MS - 1 })).toBe(true);
+  });
+
+  it('trusts the cache from one minute up to the refresh window', () => {
+    expect(shouldRefetchOnMount({ age: PRECIO_RECACHE_MS })).toBe(false);
+    expect(shouldRefetchOnMount({ age: 90_000 })).toBe(false);
+    expect(shouldRefetchOnMount({ age: PRECIO_REFRESH_MS - 1 })).toBe(false);
+  });
+
+  it('keeps the recache window inside the cache validity window', () => {
+    expect(PRECIO_RECACHE_MS).toBeLessThan(PRECIO_REFRESH_MS);
+  });
+
+  // Los tiempos salen de las constantes, no de numeros sueltos: asi el test
+  // sigue siendo valido si se cambia PRECIO_REFRESH_MS o PRECIO_RECACHE_MS.
+  it('agrees with readPriceCache: a fresh cache still refetches', () => {
+    const storage = fakeStorage();
+    writePriceCache({ BTC: { price: 1, change24h: 0 } }, storage, 0);
+
+    // Todavia joven (< ventana de recache): el cache vale, pero igual refresca.
+    const fresh = readPriceCache(storage, PRECIO_RECACHE_MS - 1);
+    expect(fresh).not.toBeNull();
+    expect(shouldRefetchOnMount(fresh)).toBe(true);
+
+    // Ya paso la ventana de recache pero sigue dentro de la vigencia: alcanza
+    // con lo guardado.
+    const older = readPriceCache(storage, PRECIO_RECACHE_MS + 1);
+    expect(older).not.toBeNull();
+    expect(older.age).toBe(PRECIO_RECACHE_MS + 1);
+    expect(shouldRefetchOnMount(older)).toBe(false);
+
+    // Cache vencido: readPriceCache devuelve null y se consulta.
+    const expired = readPriceCache(storage, PRECIO_REFRESH_MS);
+    expect(expired).toBeNull();
+    expect(shouldRefetchOnMount(expired)).toBe(true);
   });
 });

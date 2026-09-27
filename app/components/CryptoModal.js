@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { isResolvableSymbol } from '../utils/coinGecko';
 
 const symbolToId = {
   'BTC': 'bitcoin',
@@ -70,19 +71,37 @@ export default function CryptoModal({ isOpen, onClose, onSubmit, type, existingC
     }
 
     if (type === 'add') {
-      try {
-        const searchResponse = await fetch(
-          `https://api.coingecko.com/api/v3/search?query=${symbol}`
-        );
-        const searchData = await searchResponse.json();
-        
-        if (searchData.coins.length === 0) {
-          setError('Crypto no encontrada en CoinGecko');
+      // Solo se verifica contra la API lo que no se puede resolver sin red.
+      // Para BTC, ETH y el resto del mapa conocido (o lo que ya quedo en el
+      // cache) esta validacion seria un /search repetido al de abajo: cero
+      // llamadas, y el resolver del padre se encarga del precio.
+      const cachedMappings = (() => {
+        try {
+          return JSON.parse(localStorage.getItem('symbolToIdCache') || '{}');
+        } catch {
+          return {};
+        }
+      })();
+
+      if (!isResolvableSymbol(upperSymbol, cachedMappings)) {
+        try {
+          const searchResponse = await fetch(
+            `https://api.coingecko.com/api/v3/search?query=${symbol}`
+          );
+          if (!searchResponse.ok) {
+            setError('No se pudo verificar la crypto, intentá de nuevo');
+            return;
+          }
+          const searchData = await searchResponse.json();
+
+          if (!searchData.coins || searchData.coins.length === 0) {
+            setError('Crypto no encontrada en CoinGecko');
+            return;
+          }
+        } catch (error) {
+          setError('Error al verificar la crypto');
           return;
         }
-      } catch (error) {
-        setError('Error al verificar la crypto');
-        return;
       }
     }
 

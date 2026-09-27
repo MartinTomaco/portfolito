@@ -135,3 +135,45 @@ export function formatPercent(value, options = {}) {
   const prefix = signed && value > 0 ? '+' : '';
   return `${prefix}${value.toFixed(1)}%`;
 }
+
+// Columnas que dependen de los montos de cada fila. Con el ojo cerrado estas
+// muestran "***", asi que ordenar por ellas revelaria cuanto tiene cada
+// cripto aunque el numero este escondido: con el ojo cerrado no se pueden
+// tocar.
+export const BALANCE_SORT_KEYS = ['amount', 'value'];
+
+export function canSortColumn(key, hideBalances) {
+  return !hideBalances || !BALANCE_SORT_KEYS.includes(key);
+}
+
+// Ordena las filas de la tabla por una columna. Cada fila trae el valor YA
+// resuelto, el mismo que muestra la celda, asi que el orden nunca contradice
+// lo que se ve en pantalla. direction: 'asc' | 'desc'.
+//
+// Los valores ausentes (null/undefined, tipicamente una cripto sin precio)
+// van siempre al final y en los dos sentidos: no tienen lugar en el ranking
+// y mandarlos al fondo hace que no aparezcan mezclados entre los numeros.
+export function sortPortfolioRows(rows, key, direction) {
+  const factor = direction === 'desc' ? -1 : 1;
+
+  return [...rows].sort((a, b) => {
+    const left = a[key];
+    const right = b[key];
+    const leftMissing = left === null || left === undefined;
+    const rightMissing = right === null || right === undefined;
+
+    if (leftMissing || rightMissing) {
+      if (leftMissing && rightMissing) return 0;
+      return leftMissing ? 1 : -1;
+    }
+
+    // Los simbolos se comparan como texto. numeric para que "SOL2" vaya
+    // despues de "SOL" y no antes, como pasaria con un compareTo a secas.
+    if (typeof left === 'string') {
+      return left.localeCompare(right, 'es', { numeric: true, sensitivity: 'base' }) * factor;
+    }
+
+    if (left === right) return 0;
+    return (left - right) * factor;
+  });
+}

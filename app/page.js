@@ -1,11 +1,17 @@
 'use client'
 import { useState, useEffect } from 'react';
-import CryptoMarquee from "./components/CryptoMarquee";
 import CryptoPortfolio from "./components/CryptoPortfolio";
 import LoginModal from "./components/LoginModal";
-import { resolveAndFetchPrecios } from "./utils/coinGecko";
+import {
+  resolveAndFetchPrecios,
+  readPriceCache,
+  writePriceCache,
+  shouldRefetchOnMount,
+  PRECIO_REFRESH_MS
+} from "./utils/coinGecko";
 
 const GUEST_SESSION = { isGuest: true };
+const DEFAULT_SYMBOLS = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP'];
 
 export default function Home() {
   const [precios, setPrecios] = useState({});
@@ -37,32 +43,76 @@ export default function Home() {
   };
 
   useEffect(() => {
+    // 1. Se pinta al instante con el cache y recien ahi se decide si hace
+    //    falta pegarle a la API. Sin cache se consulta siempre; con cache
+    //    tambien, si el precio tiene menos de un minuto, porque a esa altura
+    //    es tan fresco que la llamada extra no se nota y te abre con el
+    //    precio mas al dia.
+    const cache = readPriceCache(localStorage);
+    if (cache) {
+      setPrecios(cache.precios);
+    }
+
+    let timer = null;
+
     const fetchPrecios = async () => {
       try {
         const storedPortfolio = localStorage.getItem('cryptoPortfolio');
         const portfolioSymbols = storedPortfolio ? Object.keys(JSON.parse(storedPortfolio)) : [];
-        const defaultSymbols = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP'];
-        const allSymbols = [...new Set([...defaultSymbols, ...portfolioSymbols])];
+        const allSymbols = [...new Set([...DEFAULT_SYMBOLS, ...portfolioSymbols])];
 
         const preciosFormateados = await resolveAndFetchPrecios(allSymbols, {
           getCachedMappings: () => JSON.parse(localStorage.getItem('symbolToIdCache') || '{}'),
           saveCachedMappings: (cache) => localStorage.setItem('symbolToIdCache', JSON.stringify(cache)),
         });
 
+        // Vacio = la API no respondio (rate limit o caida). Se conservan los
+        // precios que ya teniamos en memoria en vez de dejar las filas a ciegas.
+        if (Object.keys(preciosFormateados).length === 0) return;
+
         setPrecios(prevPrecios => ({ ...prevPrecios, ...preciosFormateados }));
+        writePriceCache(preciosFormateados, localStorage);
       } catch (error) {
         console.warn('Error al obtener precios:', error.message);
       }
     };
 
-    fetchPrecios();
-    const interval = setInterval(fetchPrecios, 60000);
-    return () => clearInterval(interval);
+    const startPolling = () => {
+      if (timer !== null) return;
+      timer = setInterval(fetchPrecios, PRECIO_REFRESH_MS);
+    };
+
+    const stopPolling = () => {
+      if (timer === null) return;
+      clearInterval(timer);
+      timer = null;
+    };
+
+    // 2. Con la pestaña oculta no se consulta: nadie está mirando el número,
+    //    y cada poll gastado ahí es un poll que no llega a verse.
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        fetchPrecios();
+        startPolling();
+      }
+    };
+
+    if (shouldRefetchOnMount(cache)) {
+      fetchPrecios();
+    }
+    startPolling();
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      stopPolling();
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
   }, []);
 
   return (
     <div className="flex flex-col min-h-screen bg-[#0a0a0a]">
-      <CryptoMarquee precios={precios} />
       <div className="flex justify-end p-4">
         <button
           onClick={() => setShowLogin(true)}

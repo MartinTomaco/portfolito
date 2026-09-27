@@ -14,7 +14,10 @@ import {
   computeSnapshot,
   formatPrice,
   formatUsd,
-  formatPercent
+  formatPercent,
+  canSortColumn,
+  BALANCE_SORT_KEYS,
+  sortPortfolioRows
 } from '../app/utils/simulation.js';
 
 describe('isValidPrice', () => {
@@ -377,5 +380,124 @@ describe('formatPercent', () => {
 
   it('can render without sign', () => {
     expect(formatPercent(4.21, { signed: false })).toBe('4.2%');
+  });
+});
+
+describe('canSortColumn', () => {
+  it('lets every column sort while balances are visible', () => {
+    expect(canSortColumn('symbol', false)).toBe(true);
+    expect(canSortColumn('amount', false)).toBe(true);
+    expect(canSortColumn('price', false)).toBe(true);
+    expect(canSortColumn('percent', false)).toBe(true);
+    expect(canSortColumn('value', false)).toBe(true);
+  });
+
+  it('blocks the balance columns while balances are hidden', () => {
+    expect(canSortColumn('amount', true)).toBe(false);
+    expect(canSortColumn('value', true)).toBe(false);
+  });
+
+  it('still lets non-balance columns sort while balances are hidden', () => {
+    expect(canSortColumn('symbol', true)).toBe(true);
+    expect(canSortColumn('price', true)).toBe(true);
+    expect(canSortColumn('percent', true)).toBe(true);
+  });
+
+  it('marks exactly amount and value as balance columns', () => {
+    expect(BALANCE_SORT_KEYS).toEqual(['amount', 'value']);
+  });
+});
+
+describe('sortPortfolioRows', () => {
+  const rows = [
+    { symbol: 'BTC', amount: 2, price: 40000, percent: 1.5, value: 80000 },
+    { symbol: 'ETH', amount: 10, price: 2000, percent: -3.2, value: 20000 },
+    { symbol: 'SOL', amount: 5, price: 100, percent: 8.4, value: 500 }
+  ];
+
+  it('sorts numbers ascending and descending', () => {
+    expect(sortPortfolioRows(rows, 'price', 'asc').map((r) => r.symbol)).toEqual([
+      'SOL',
+      'ETH',
+      'BTC'
+    ]);
+    expect(sortPortfolioRows(rows, 'price', 'desc').map((r) => r.symbol)).toEqual([
+      'BTC',
+      'ETH',
+      'SOL'
+    ]);
+  });
+
+  it('sorts negative percentages before positive ones when ascending', () => {
+    expect(sortPortfolioRows(rows, 'percent', 'asc').map((r) => r.symbol)).toEqual([
+      'ETH',
+      'BTC',
+      'SOL'
+    ]);
+  });
+
+  it('sorts symbols alphabetically in both directions', () => {
+    expect(sortPortfolioRows(rows, 'symbol', 'asc').map((r) => r.symbol)).toEqual([
+      'BTC',
+      'ETH',
+      'SOL'
+    ]);
+    expect(sortPortfolioRows(rows, 'symbol', 'desc').map((r) => r.symbol)).toEqual([
+      'SOL',
+      'ETH',
+      'BTC'
+    ]);
+  });
+
+  it('sorts symbols with numbers after the plain ones', () => {
+    const withNumbers = [
+      { symbol: 'SOL10' },
+      { symbol: 'SOL2' },
+      { symbol: 'SOL' }
+    ];
+    expect(sortPortfolioRows(withNumbers, 'symbol', 'asc').map((r) => r.symbol)).toEqual([
+      'SOL',
+      'SOL2',
+      'SOL10'
+    ]);
+  });
+
+  it('pushes rows without a value to the end whichever direction', () => {
+    const priceless = [
+      { symbol: 'NOPRICE', price: null },
+      { symbol: 'LOW', price: 5 },
+      { symbol: 'HIGH', price: 50 }
+    ];
+    expect(sortPortfolioRows(priceless, 'price', 'asc').map((r) => r.symbol)).toEqual([
+      'LOW',
+      'HIGH',
+      'NOPRICE'
+    ]);
+    expect(sortPortfolioRows(priceless, 'price', 'desc').map((r) => r.symbol)).toEqual([
+      'HIGH',
+      'LOW',
+      'NOPRICE'
+    ]);
+  });
+
+  it('treats undefined like null', () => {
+    const rows2 = [{ symbol: 'A', price: undefined }, { symbol: 'B', price: 3 }];
+    expect(sortPortfolioRows(rows2, 'price', 'asc').map((r) => r.symbol)).toEqual([
+      'B',
+      'A'
+    ]);
+  });
+
+  it('keeps the input array untouched', () => {
+    const original = [...rows];
+    sortPortfolioRows(rows, 'price', 'desc');
+    expect(rows).toEqual(original);
+  });
+
+  it('handles an empty list and a single row', () => {
+    expect(sortPortfolioRows([], 'price', 'asc')).toEqual([]);
+    expect(sortPortfolioRows([{ symbol: 'BTC', price: 1 }], 'price', 'asc')).toEqual([
+      { symbol: 'BTC', price: 1 }
+    ]);
   });
 });

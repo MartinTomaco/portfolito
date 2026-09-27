@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import CryptoModal from './CryptoModal';
 import EyeIcon from './EyeIcon';
+import { resolveAndFetchPrecios } from '../utils/coinGecko';
 import {
   isValidPrice,
   getRealPrice,
@@ -9,7 +10,9 @@ import {
   computeSnapshot,
   formatPrice,
   formatUsd,
-  formatPercent
+  formatPercent,
+  canSortColumn,
+  sortPortfolioRows
 } from '../utils/simulation';
 
 // Píxeles de dedo por paso en el swipe de mobile. El dedo recorre mucho menos
@@ -29,6 +32,56 @@ const EMPTY_ROW = {
   delta: 0
 };
 
+// El porcentaje que se ve en la celda: el offset simulado si la fila esta
+// simulada, si no el cambio real de 24h. Sale de un solo lugar para que el
+// orden por "24hs" no pueda contradecir a la columna.
+function getDisplayPercent(symbol, simulaciones, precios) {
+  if (symbol in simulaciones) {
+    return simulaciones[symbol] ?? 0;
+  }
+  const change = precios[symbol]?.change24h;
+  return typeof change === 'number' ? change : null;
+}
+
+// Encabezado de columna: click para alternar asc -> desc -> sin orden. Con el
+// ojo cerrado, "Cant." y "Total" quedan deshabilitados (ver canSortColumn) y se
+// avisa con el title en vez de dejar un click que no hace nada.
+function SortHeader({ label, columnKey, sortConfig, hideBalances, onSort, align = 'right' }) {
+  const sortable = canSortColumn(columnKey, hideBalances);
+  const active = sortConfig?.key === columnKey;
+  const direction = active ? sortConfig.direction : null;
+  const arrow = direction === 'asc' ? '▲' : direction === 'desc' ? '▼' : '';
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(columnKey)}
+      disabled={!sortable}
+      title={
+        sortable
+          ? active
+            ? `Ordenar por ${label.toLowerCase()} ${direction === 'asc' ? 'descendente' : 'ascendente'}`
+            : `Ordenar por ${label.toLowerCase()}`
+          : 'Mostrá los montos para poder ordenar por esta columna'
+      }
+      className={`inline-flex items-center gap-0.5 font-mono font-normal transition-colors duration-300 ${
+        align === 'right' ? 'flex-row-reverse' : ''
+      } ${
+        sortable
+          ? active
+            ? 'text-[#00ff00] cursor-pointer'
+            : 'text-[#00ff00]/70 hover:text-[#00ff00] cursor-pointer'
+          : 'text-[#00ff00]/30 cursor-not-allowed'
+      } ${active ? 'drop-shadow-[0_0_6px_#00ff00]' : ''}`}
+    >
+      {label}
+      <span aria-hidden="true" className="text-[8px] leading-none w-[7px] inline-block">
+        {arrow}
+      </span>
+    </button>
+  );
+}
+
 export default function CryptoPortfolio({ precios, setPrecios }) {
   const [isClient, setIsClient] = useState(false);
   const [portfolio, setPortfolio] = useState({
@@ -42,6 +95,10 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState('add');
   const [cryptoOrder, setCryptoOrder] = useState([]);
+  // Orden de la vista, aparte de cryptoOrder: ordenar no pisa el orden guardado
+  // en localStorage, asi que al borrar el sort las filas vuelven donde estaban.
+  // null = sin ordenar, se respeta cryptoOrder.
+  const [sortConfig, setSortConfig] = useState(null);
   const [simulaciones, setSimulaciones] = useState({});
   const [armedSymbol, setArmedSymbol] = useState(null);
   // Apagado por defecto: sin tocar el interruptor no se edita ningun precio.
@@ -182,6 +239,40 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
     setEditando(crypto);
   };
 
+  // Ciclo de tres estados por columna: ascendente -> descendente -> sin
+  // orden. El tercer click devuelve las filas al orden guardado. Con el ojo
+  // cerrado las columnas de montos no hacen nada.
+  const handleSort = (key) => {
+    if (!canSortColumn(key, hideBalances)) return;
+
+    setSortConfig(prev => {
+      if (prev?.key !== key) return { key, direction: 'asc' };
+      if (prev.direction === 'asc') return { key, direction: 'desc' };
+      return null;
+    });
+  };
+
+  // Orden real de las filas a pintar. Arma una fila por cripto con los valores
+  // ya resueltos y los pasa al helper, que se encarga de compararlos.
+  const visibleOrder = useMemo(() => {
+    if (!sortConfig) return cryptoOrder;
+
+    const rows = cryptoOrder.map((symbol) => {
+      const row = snapshot.porActivo[symbol] || EMPTY_ROW;
+      return {
+        symbol,
+        amount: row.amount,
+        price: row.price,
+        percent: getDisplayPercent(symbol, simulaciones, precios),
+        value: row.value
+      };
+    });
+
+    return sortPortfolioRows(rows, sortConfig.key, sortConfig.direction).map(
+      (row) => row.symbol
+    );
+  }, [cryptoOrder, snapshot, sortConfig, simulaciones, precios]);
+
   const handleSave = (crypto, valor) => {
     setPortfolio(prev => ({
       ...prev,
@@ -195,74 +286,28 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
     setShowModal(true);
   };
 
+  // Reusa el resolver de la app en vez de repetir la búsqueda a mano. El
+  // symbolToId cacheado hace que agregar una cripto que ya se conoce sea una
+  // sola llamada (el precio) en vez de dos (búsqueda + precio), y que la
+  // búsqueda se payee una unica vez por símbolo.
   const fetchNewCryptoPrice = async (symbol) => {
-    try {
-      const searchResponse = await fetch(
-        `https://api.coingecko.com/api/v3/search?query=${symbol}`
-      );
-      
-      if (!searchResponse.ok) {
-        console.warn(`No se pudo buscar ${symbol}:`, searchResponse.status);
-        return null;
-      }
-      
-      const searchData = await searchResponse.json();
-      
-      if (!searchData || !searchData.coins || searchData.coins.length === 0) {
-        console.warn(`No se encontró información para ${symbol}`);
-        return null;
-      }
-      
-      const coinId = searchData.coins[0].id;
-      const response = await fetch(
-        `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd&include_24hr_change=true`
-      );
-      
-      if (!response.ok) {
-        console.warn(`No se pudo obtener precio para ${symbol}:`, response.status);
-        return null;
-      }
-      
-      const data = await response.json();
-      
-      if (data && data[coinId] && data[coinId].usd !== undefined) {
-        return {
-          price: data[coinId].usd,
-          change24h: data[coinId].usd_24h_change
-        };
-      }
-      
-      return null;
-    } catch (error) {
-      console.warn(`Error al obtener precio para ${symbol}:`, error.message);
-      return null;
-    }
+    const formateados = await resolveAndFetchPrecios([symbol], {
+      getCachedMappings: () => JSON.parse(localStorage.getItem('symbolToIdCache') || '{}'),
+      saveCachedMappings: (cache) => localStorage.setItem('symbolToIdCache', JSON.stringify(cache))
+    });
+    return formateados[symbol] || null;
   };
 
   const handleModalSubmit = async (symbol, amount) => {
     if (modalType === 'add') {
-      try {
-        const newPrice = await fetchNewCryptoPrice(symbol);
-        if (newPrice) {
-          setPrecios(prev => ({
-            ...prev,
-            [symbol]: newPrice
-          }));
-        } else {
-          // Si no se encuentra precio, agregar el símbolo sin precio para que se muestre como "Sin precio"
-          setPrecios(prev => ({
-            ...prev,
-            [symbol]: null
-          }));
-        }
-      } catch (error) {
-        console.warn(`Error al obtener precio para ${symbol}, agregando sin precio`);
-        setPrecios(prev => ({
-          ...prev,
-          [symbol]: null
-        }));
+      const newPrice = await fetchNewCryptoPrice(symbol);
+      // Si la API no responde (rate limit) se deja el precio anterior como
+      // estaba. Antes se seteaba null y la fila quedaba en "Sin precio" de
+      // forma permanente, aunque al poll siguiente la API_volara.
+      if (newPrice) {
+        setPrecios(prev => ({ ...prev, [symbol]: newPrice }));
       }
-      
+
       setPortfolio(prev => ({
         ...prev,
         [symbol]: formatCryptoAmount((prev[symbol] || 0) + amount)
@@ -424,19 +469,71 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
       <table ref={tableRef} className="w-full border-collapse">
         <thead>
           <tr className="border-b-2 border-[#00ff00]/30">
-            <th className="py-2 sm:py-3 text-left font-mono text-[#00ff00]/70 font-normal text-xs sm:text-sm w-[30%]">Crypto</th>
-            <th className="py-2 sm:py-3 text-right font-mono text-[#00ff00]/70 font-normal text-xs sm:text-sm w-[20%]">Cant.</th>
             <th
-              className="py-2 sm:py-3 text-right font-mono text-[#00ff00]/70 font-normal text-xs sm:text-sm w-[25%] whitespace-nowrap"
-              title="columna en modo simulación"
+              aria-sort={sortConfig?.key === 'symbol' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+              className="py-2 sm:py-3 text-left font-mono text-[#00ff00]/70 font-normal text-xs sm:text-sm w-[24%]"
             >
-              24h sim
+              <SortHeader
+                label="Crypto"
+                columnKey="symbol"
+                sortConfig={sortConfig}
+                hideBalances={hideBalances}
+                onSort={handleSort}
+                align="left"
+              />
             </th>
-            <th className="py-2 sm:py-3 text-right font-mono text-[#00ff00]/70 font-normal text-xs sm:text-sm w-[25%]">Total (USD %)</th>
+            <th
+              aria-sort={sortConfig?.key === 'amount' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+              className="py-2 sm:py-3 text-right font-mono text-[#00ff00]/70 font-normal text-xs sm:text-sm w-[18%]"
+            >
+              <SortHeader
+                label="Cant."
+                columnKey="amount"
+                sortConfig={sortConfig}
+                hideBalances={hideBalances}
+                onSort={handleSort}
+              />
+            </th>
+            <th
+              aria-sort={sortConfig?.key === 'price' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+              className="py-2 sm:py-3 text-right font-mono text-[#00ff00]/70 font-normal text-xs sm:text-sm w-[20%] whitespace-nowrap"
+            >
+              <SortHeader
+                label="Precio"
+                columnKey="price"
+                sortConfig={sortConfig}
+                hideBalances={hideBalances}
+                onSort={handleSort}
+              />
+            </th>
+            <th
+              aria-sort={sortConfig?.key === 'percent' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+              className="py-2 sm:py-3 text-right font-mono text-[#00ff00]/70 font-normal text-xs sm:text-sm w-[16%] whitespace-nowrap"
+            >
+              <SortHeader
+                label="24hs"
+                columnKey="percent"
+                sortConfig={sortConfig}
+                hideBalances={hideBalances}
+                onSort={handleSort}
+              />
+            </th>
+            <th
+              aria-sort={sortConfig?.key === 'value' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+              className="py-2 sm:py-3 text-right font-mono text-[#00ff00]/70 font-normal text-xs sm:text-sm w-[22%]"
+            >
+              <SortHeader
+                label="Total (USD %)"
+                columnKey="value"
+                sortConfig={sortConfig}
+                hideBalances={hideBalances}
+                onSort={handleSort}
+              />
+            </th>
           </tr>
         </thead>
         <tbody>
-          {cryptoOrder.map((crypto) => {
+          {visibleOrder.map((crypto) => {
             const row = snapshot.porActivo[crypto] || EMPTY_ROW;
             const { amount, realPrice, price, offset, isSimulated, value, delta } = row;
             const participationPercentage = snapshot.total > 0 ? (value / snapshot.total) * 100 : 0;
@@ -447,6 +544,7 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
             // solo queda "armed" de verdad cuando la simulacion esta encendida.
             const isArmedForSim = isArmed && simOn;
             const enSimulacion = crypto in simulaciones;
+            const displayedPercent = getDisplayPercent(crypto, simulaciones, precios);
             const simColor = isUp ? 'text-[#00ff00]' : isDown ? 'text-[#ff0000]' : 'text-[#00ff00]/50';
             const simGlow = isUp
               ? 'drop-shadow-[0_0_6px_#00ff00]'
@@ -491,7 +589,7 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
                         ? 'Girá la rueda para ajustar este precio'
                         : 'Click para simular este precio'
                   }
-                  className={`py-2 sm:py-3 text-right font-mono text-[#00ff00] text-xs sm:text-sm min-w-[104px] sm:min-w-[120px] relative ${isArmedForSim ? 'sim-price-cell cursor-ns-resize' : ''}`}
+                  className={`py-2 sm:py-3 text-right font-mono text-[#00ff00] text-xs sm:text-sm min-w-[72px] sm:min-w-[84px] relative ${isArmedForSim ? 'sim-price-cell cursor-ns-resize' : ''}`}
                 >
                   {isSimulated && (
                     <span
@@ -501,33 +599,35 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
                       {formatUsd(delta, { signed: true })}
                     </span>
                   )}
-                  <div className="flex items-center justify-end gap-2">
-                    {price !== null ? (
-                      <span className={`inline-block min-w-[52px] sm:min-w-[60px] text-right whitespace-nowrap ${isSimulated ? simGlow : ''}`}>
-                        {`$${formatPrice(price)}`}
-                      </span>
-                    ) : (
-                      <span className="inline-block min-w-[52px] sm:min-w-[60px] text-right text-[#00ff00]/50">Sin precio</span>
-                    )}
-                    {enSimulacion ? (
-                      <span className={`inline-block min-w-[48px] sm:min-w-[60px] text-right ${simColor} ${simGlow}`}>
-                        {formatPercent(offset)}
-                      </span>
-                    ) : (
-                      <span className={`inline-block min-w-[48px] sm:min-w-[60px] text-right ${
-                        !precios[crypto] || precios[crypto] === null || precios[crypto]?.change24h === undefined || precios[crypto]?.change24h === null || typeof precios[crypto]?.change24h !== 'number'
-                          ? 'text-[#00ff00]/50'
-                          : precios[crypto]?.change24h > 0 
-                            ? 'text-[#00ff00]' 
-                            : 'text-[#ff0000]'
-                      }`}>
-                        {!precios[crypto] || precios[crypto] === null || precios[crypto]?.change24h === undefined || precios[crypto]?.change24h === null || typeof precios[crypto]?.change24h !== 'number'
-                          ? 'N/A'
-                          : `${precios[crypto]?.change24h > 0 ? '+' : ''}${precios[crypto]?.change24h.toFixed(2)}%`
-                        }
-                      </span>
-                    )}
-                  </div>
+                  {price !== null ? (
+                    <span className={`inline-block min-w-[64px] sm:min-w-[72px] text-right whitespace-nowrap ${isSimulated ? simGlow : ''}`}>
+                      {`$${formatPrice(price)}`}
+                    </span>
+                  ) : (
+                    <span className="inline-block min-w-[64px] sm:min-w-[72px] text-right text-[#00ff00]/50">Sin precio</span>
+                  )}
+                </td>
+                <td
+                  className="py-2 sm:py-3 text-right font-mono text-[#00ff00] text-xs sm:text-sm min-w-[52px] sm:min-w-[62px] whitespace-nowrap"
+                >
+                  {enSimulacion ? (
+                    <span className={`inline-block min-w-[48px] sm:min-w-[56px] text-right ${simColor} ${simGlow}`}>
+                      {formatPercent(offset)}
+                    </span>
+                  ) : (
+                    <span className={`inline-block min-w-[48px] sm:min-w-[56px] text-right ${
+                      displayedPercent === null
+                        ? 'text-[#00ff00]/50'
+                        : displayedPercent > 0
+                          ? 'text-[#00ff00]'
+                          : 'text-[#ff0000]'
+                    }`}>
+                      {displayedPercent === null
+                        ? 'N/A'
+                        : `${displayedPercent > 0 ? '+' : ''}${displayedPercent.toFixed(2)}%`
+                      }
+                    </span>
+                  )}
                 </td>
                 <td
                   data-swipe-symbol={isArmedForSim ? crypto : undefined}
@@ -563,7 +663,7 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
         </tbody>
         <tfoot>
           <tr className="border-t-2 border-[#00ff00]/30">
-            <td colSpan="3" className="py-2 sm:py-3 text-right font-mono text-[#00ff00] font-bold text-xs sm:text-sm">
+            <td colSpan="4" className="py-2 sm:py-3 text-right font-mono text-[#00ff00] font-bold text-xs sm:text-sm">
               Total:
             </td>
             <td className="py-2 sm:py-3 text-right font-mono text-[#00ff00] font-bold text-xs sm:text-sm min-w-[64px] sm:min-w-[100px] relative">
