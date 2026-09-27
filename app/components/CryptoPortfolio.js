@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useMemo, useRef } from 'react';
 import CryptoModal from './CryptoModal';
+import EyeIcon from './EyeIcon';
 import {
   isValidPrice,
   getRealPrice,
@@ -43,6 +44,13 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
   const [cryptoOrder, setCryptoOrder] = useState([]);
   const [simulaciones, setSimulaciones] = useState({});
   const [armedSymbol, setArmedSymbol] = useState(null);
+  // Apagado por defecto: sin tocar el interruptor no se edita ningun precio.
+  const [simOn, setSimOn] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('simOn') === 'true';
+    }
+    return false;
+  });
   const [hideBalances, setHideBalances] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('hideBalances');
@@ -61,10 +69,6 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
     () => computeSnapshot(portfolio, precios, simulaciones),
     [portfolio, precios, simulaciones]
   );
-
-  // Varias filas pueden quedar simuladas a la vez; armedSymbol es la que
-  // responde a la rueda o al swipe, y puede cambiar cuantas veces quieras.
-  const simulacionActiva = Object.keys(simulaciones).length > 0;
 
   // Descarta la fila armada si su activo deja de existir o de tener precio.
   useEffect(() => {
@@ -109,12 +113,14 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
       if (event.ctrlKey) return;
       if (event.deltaY === 0) return;
       if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
+      if (!simOn) return;
       if (!armedSymbol) return;
 
       const symbol = armedSymbol;
       const realPrice = getRealPrice(precios, symbol);
       if (!isValidPrice(realPrice)) return;
 
+      // Sin esto la pagina no scrollea al pasar la rueda por encima de la tabla.
       event.preventDefault();
 
       wheelContextRef.current = {
@@ -139,7 +145,7 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
       }
       wheelContextRef.current = null;
     };
-  }, [precios, isClient, armedSymbol]);
+  }, [precios, isClient, armedSymbol, simOn]);
 
   useEffect(() => {
     if (isClient) {
@@ -165,6 +171,12 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
       localStorage.setItem('hideBalances', JSON.stringify(hideBalances));
     }
   }, [hideBalances, isClient]);
+
+  useEffect(() => {
+    if (isClient) {
+      localStorage.setItem('simOn', String(simOn));
+    }
+  }, [simOn, isClient]);
 
   const handleEdit = (crypto) => {
     setEditando(crypto);
@@ -282,8 +294,19 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
     setArmedSymbol(null);
   };
 
+  // Al apagar el interruptor se tira la simulacion entera: quedarian offsets
+  // huerfanos aplicados a precios que el usuario ya no ve como editables.
+  const handleToggleSim = () => {
+    if (simOn) {
+      resetSimulacion();
+    }
+    setSimOn(!simOn);
+  };
+
   // Tocar cualquier celda de la fila la deja seleccionada (verde + cursor):
   // responde a la rueda, al swipe y es la que precarga el modal de + y -.
+  // Con la simulacion apagada la fila igual se selecciona, porque + y - la
+  // necesitan para precargar el simbolo, pero no se arma para editar precio.
   const handleSelectRow = (symbol) => {
     if (suppressClickRef.current) {
       suppressClickRef.current = false;
@@ -293,6 +316,7 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
     if (!isValidPrice(getRealPrice(precios, symbol))) return;
 
     setArmedSymbol(symbol);
+    if (!simOn) return;
     setSimulaciones(prev => (symbol in prev ? prev : { ...prev, [symbol]: 0 }));
   };
 
@@ -301,6 +325,7 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
     // click, el flag quedaba en true y se comía el siguiente toque.
     suppressClickRef.current = false;
     if (event.pointerType === 'mouse') return;
+    if (!simOn) return;
 
     const symbol = event.currentTarget.dataset.swipeSymbol || event.currentTarget.dataset.symbol;
     if (armedSymbol !== symbol) return;
@@ -378,36 +403,17 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
 
   return (
     <div className="w-full max-w-4xl px-2 sm:px-4">
-      <div className="mb-6 text-center flex flex-col items-center">
-        <h1 className="text-[#00ff00] text-2xl sm:text-3xl font-bold font-mono mb-2 flex items-center">
+      <div className="mb-6 sm:mb-8 text-center flex flex-col items-center">
+        <h1 className="text-[#00ff00] text-3xl sm:text-4xl font-bold font-mono mb-2 flex items-center gap-1">
           Portfolit
           <button
             onClick={() => setHideBalances(!hideBalances)}
+            title={hideBalances ? 'Mostrar montos' : 'Ocultar montos'}
+            aria-label={hideBalances ? 'Mostrar montos' : 'Ocultar montos'}
+            aria-pressed={hideBalances}
             className="inline-flex items-center hover:text-[#00ff00] transition-colors duration-300"
           >
-            <svg 
-              className="w-7 h-7 sm:w-8 sm:h-8" 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24" 
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              {hideBalances ? (
-                <path 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth={2} 
-                  d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
-                />
-              ) : (
-                <path 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth={2} 
-                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                />
-              )}
-            </svg>
+            <EyeIcon hidden={hideBalances} className="w-8 h-8 sm:w-9 sm:h-9" />
           </button>
         </h1>
         <p className="text-[#00ff00]/70 text-sm sm:text-base font-mono mb-2">
@@ -420,16 +426,11 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
           <tr className="border-b-2 border-[#00ff00]/30">
             <th className="py-2 sm:py-3 text-left font-mono text-[#00ff00]/70 font-normal text-xs sm:text-sm w-[30%]">Crypto</th>
             <th className="py-2 sm:py-3 text-right font-mono text-[#00ff00]/70 font-normal text-xs sm:text-sm w-[20%]">Cant.</th>
-            <th className="py-2 sm:py-3 text-right font-mono text-[#00ff00]/70 font-normal text-xs sm:text-sm w-[25%] whitespace-nowrap">
-              {simulacionActiva ? (
-                <span title="columna en modo simulación">
-                  <span className="line-through text-[#00ff00]/40">24h</span>
-                  <span className="hidden sm:inline text-[#00ff00]"> simulación</span>
-                  <span className="sm:hidden text-[#00ff00]"> sim</span>
-                </span>
-              ) : (
-                'Precio 24h %'
-              )}
+            <th
+              className="py-2 sm:py-3 text-right font-mono text-[#00ff00]/70 font-normal text-xs sm:text-sm w-[25%] whitespace-nowrap"
+              title="columna en modo simulación"
+            >
+              24h sim
             </th>
             <th className="py-2 sm:py-3 text-right font-mono text-[#00ff00]/70 font-normal text-xs sm:text-sm w-[25%]">Total (USD %)</th>
           </tr>
@@ -442,6 +443,9 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
             const isUp = offset > 0;
             const isDown = offset < 0;
             const isArmed = armedSymbol === crypto;
+            // armedSymbol se setea siempre (lo necesita + y -), pero la fila
+            // solo queda "armed" de verdad cuando la simulacion esta encendida.
+            const isArmedForSim = isArmed && simOn;
             const enSimulacion = crypto in simulaciones;
             const simColor = isUp ? 'text-[#00ff00]' : isDown ? 'text-[#ff0000]' : 'text-[#00ff00]/50';
             const simGlow = isUp
@@ -454,13 +458,13 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
                 key={crypto}
                 data-symbol={crypto}
                 onClick={() => handleSelectRow(crypto)}
-                className={`border-b border-[#00ff00]/10 ${realPrice !== null ? 'sim-row' : ''} ${isArmed || isSimulated ? 'bg-[#00ff00]/5' : ''} transition-colors duration-200`}
+                className={`border-b border-[#00ff00]/10 ${realPrice !== null ? 'sim-row' : ''} ${isArmedForSim || isSimulated ? 'bg-[#00ff00]/10' : ''} transition-colors duration-200`}
               >
                 <td className="py-2 sm:py-3 font-mono text-[#00ff00] text-xs sm:text-sm">
                   <span className="inline-flex items-center">
                     <span
                       aria-hidden="true"
-                      className={`inline-block w-[7px] ${isArmed ? 'sim-cursor text-[#00ff00]' : 'invisible'}`}
+                      className={`inline-block w-[7px] ${isArmedForSim ? 'sim-cursor text-[#00ff00]' : 'invisible'}`}
                     >
                       ▌
                     </span>
@@ -476,12 +480,18 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
                 </td>
                 <td
                   data-symbol={crypto}
-                  onPointerDown={handleSwipeStart}
-                  onPointerMove={handleSwipeMove}
-                  onPointerUp={handleSwipeEnd}
-                  onPointerCancel={handleSwipeEnd}
-                  title={isArmed ? 'Girá la rueda para ajustar este precio' : 'Click para simular este precio'}
-                  className={`py-2 sm:py-3 text-right font-mono text-[#00ff00] text-xs sm:text-sm min-w-[104px] sm:min-w-[120px] relative ${isArmed ? 'sim-price-cell cursor-ns-resize' : ''}`}
+                  onPointerDown={simOn ? handleSwipeStart : undefined}
+                  onPointerMove={simOn ? handleSwipeMove : undefined}
+                  onPointerUp={simOn ? handleSwipeEnd : undefined}
+                  onPointerCancel={simOn ? handleSwipeEnd : undefined}
+                  title={
+                    !simOn
+                      ? 'Encendé la simulación para editar este precio'
+                      : isArmedForSim
+                        ? 'Girá la rueda para ajustar este precio'
+                        : 'Click para simular este precio'
+                  }
+                  className={`py-2 sm:py-3 text-right font-mono text-[#00ff00] text-xs sm:text-sm min-w-[104px] sm:min-w-[120px] relative ${isArmedForSim ? 'sim-price-cell cursor-ns-resize' : ''}`}
                 >
                   {isSimulated && (
                     <span
@@ -520,12 +530,12 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
                   </div>
                 </td>
                 <td
-                  data-swipe-symbol={isArmed ? crypto : undefined}
-                  onPointerDown={isArmed ? handleSwipeStart : undefined}
-                  onPointerMove={isArmed ? handleSwipeMove : undefined}
-                  onPointerUp={isArmed ? handleSwipeEnd : undefined}
-                  onPointerCancel={isArmed ? handleSwipeEnd : undefined}
-                  className={`py-2 sm:py-3 text-right font-mono text-[#00ff00] text-xs sm:text-sm min-w-[56px] sm:min-w-[100px] ${isArmed ? 'sim-value-cell' : ''}`}
+                  data-swipe-symbol={isArmedForSim ? crypto : undefined}
+                  onPointerDown={isArmedForSim ? handleSwipeStart : undefined}
+                  onPointerMove={isArmedForSim ? handleSwipeMove : undefined}
+                  onPointerUp={isArmedForSim ? handleSwipeEnd : undefined}
+                  onPointerCancel={isArmedForSim ? handleSwipeEnd : undefined}
+                  className={`py-2 sm:py-3 text-right font-mono text-[#00ff00] text-xs sm:text-sm min-w-[56px] sm:min-w-[100px] ${isArmedForSim ? 'sim-value-cell' : ''}`}
                 >
                   <span className="inline-block min-w-[48px] sm:min-w-[80px] text-right whitespace-nowrap">
                     {hideBalances ? '***' : (
@@ -573,29 +583,54 @@ export default function CryptoPortfolio({ precios, setPrecios }) {
         </tfoot>
       </table>
       </div>
-      <div className="flex items-center justify-between gap-3 mt-6 px-2 sm:px-4">
-        {simulacionActiva && (
+      <div className="flex items-center justify-between gap-3 sm:gap-4 mt-6 sm:mt-8 px-1 sm:px-2">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <span className="font-mono text-[10px] sm:text-[11px] leading-tight text-center text-[#00ff00]">
+            simular
+            <br />
+            precio
+          </span>
           <button
-            onClick={resetSimulacion}
-            title="Volver todos los precios al valor real"
-            className="px-2 py-1 border border-[#00ff00]/60 text-[#00ff00] text-[10px] sm:text-xs font-mono transition-all duration-300 hover:bg-[#00ff00]/10 hover:shadow-[0_0_10px_#00ff00]"
+            type="button"
+            role="switch"
+            aria-checked={simOn}
+            aria-label="Simulación de precio"
+            title={simOn ? 'Apagar la simulación' : 'Encender la simulación'}
+            onClick={handleToggleSim}
+            className="sim-toggle"
           >
-            volver a real
+            <span className="sim-toggle-knob" />
           </button>
-        )}
-        <div className="flex gap-3 ml-auto">
-        <button 
-          onClick={() => handleOpenModal('add')}
-          className="w-8 h-8 rounded-full border-2 border-[#00ff00] text-[#00ff00] hover:bg-[#00ff00]/10 flex items-center justify-center text-xl font-bold transition-all duration-300 hover:shadow-[0_0_15px_#00ff00]"
-        >
-          +
-        </button>
-        <button 
-          onClick={() => handleOpenModal('remove')}
-          className="w-8 h-8 rounded-full border-2 border-[#00ff00] text-[#00ff00] hover:bg-[#00ff00]/10 flex items-center justify-center text-xl font-bold transition-all duration-300 hover:shadow-[0_0_15px_#00ff00]"
-        >
-          -
-        </button>
+        </div>
+        <div className="flex items-center gap-5 sm:gap-12">
+          <button
+            type="button"
+            onClick={() => handleOpenModal('add')}
+            className="group flex flex-col items-center"
+          >
+            <span className="text-3xl sm:text-4xl font-light leading-none text-[#00ff00] transition-all duration-300 group-hover:drop-shadow-[0_0_12px_#00ff00]">
+              +
+            </span>
+            <span className="font-mono text-[9px] sm:text-[10px] leading-tight text-center text-[#00ff00]/70 group-hover:text-[#00ff00] transition-colors duration-300">
+              agregar
+              <br />
+              activo
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleOpenModal('remove')}
+            className="group flex flex-col items-center"
+          >
+            <span className="text-3xl sm:text-4xl font-light leading-none text-[#00ff00] transition-all duration-300 group-hover:drop-shadow-[0_0_12px_#00ff00]">
+              −
+            </span>
+            <span className="font-mono text-[9px] sm:text-[10px] leading-tight text-center text-[#00ff00]/70 group-hover:text-[#00ff00] transition-colors duration-300">
+              quitar
+              <br />
+              activo
+            </span>
+          </button>
         </div>
       </div>
       <CryptoModal 
