@@ -134,6 +134,12 @@ export default function Home() {
           <CryptoPortfolio precios={precios} setPrecios={setPrecios} />
         </div>
       </div>
+      {/* El plan Demo de CoinGecko exige atribucion visible, inclusive en el
+          gratis. La guia pide texto legible de 10px minimo: por eso
+          text-[10px] y no text-[9px] como otros labels de la app. */}
+      <footer className="text-center py-5 font-mono text-[10px] text-[#00ff00]/40">
+        Powered by CoinGecko
+      </footer>
       {showLogin && (
         <LoginModal
           onLogin={handleLogin}

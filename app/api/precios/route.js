@@ -17,7 +17,16 @@ const authHeaders = () => {
 // Cuanto se aguanta la respuesta antes de pegarle a CoinGecko. El cache es
 // global del server, no por navegador: en vez de un fetch por usuario cada
 // 90s, es UN fetch para todos los que abran la app dentro de la ventana.
-const EDGE_TTL_MS = 60 * 1000;
+//
+// 5 min y no menos. El plan Demo da 10.000 creditos por mes y cada request
+// descuenta 1, sin importar cuantos datos vuelva. Con el poll del cliente en
+// 90s y un cache de 60s el cache nunca atina, asi que salia ~1 llamada cada
+// 90s: unos 28.800 al mes, tres veces el cap. Con 5 min son ~8.640, adentro.
+//
+// No se pierde frescura: el plan Demo declara "data freshness from 60 sec",
+// o sea que el dato de CoinGecko ya tiene hasta un minuto. Cachear cinco es
+// conservador. Los terminos piden refrescar el cache al menos cada 24h.
+export const EDGE_TTL_MS = 5 * 60 * 1000;
 
 const cache = new Map();
 

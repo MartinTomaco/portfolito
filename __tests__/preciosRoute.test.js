@@ -134,15 +134,16 @@ describe('GET /api/precios', () => {
     const fetchMock = jest.fn().mockResolvedValueOnce(okResponse(PRECIOS_BODY));
     global.fetch = fetchMock;
 
-    const { GET } = loadRoute();
+    const { GET, EDGE_TTL_MS } = loadRoute();
     const t0 = 1_700_000_000_000;
     const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(t0);
 
     await (await call({ GET }, 'ids=bitcoin')).json();
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
-    // Dentro de la ventana de cache ni vuelve a pegarle a CoinGecko.
-    nowSpy.mockReturnValue(t0 + 30_000);
+    // Los offsets salen de EDGE_TTL_MS, no de numeros sueltos: asi el test
+    // sigue valido si se cambia el TTL.
+    nowSpy.mockReturnValue(t0 + EDGE_TTL_MS - 1);
     const second = await call({ GET }, 'ids=bitcoin');
     await expect(second.json()).resolves.toEqual(PRECIOS_BODY);
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -150,13 +151,23 @@ describe('GET /api/precios', () => {
 
     // Ventana vencida y CoinGecko caido: se sirve igual lo viejo, en vez de
     // devolver {} y dejar la tabla entera en "Sin precio".
-    nowSpy.mockReturnValue(t0 + 90_000);
+    nowSpy.mockReturnValue(t0 + EDGE_TTL_MS);
     fetchMock.mockResolvedValueOnce(errResponse(500));
     const third = await call({ GET }, 'ids=bitcoin');
 
     await expect(third.json()).resolves.toEqual(PRECIOS_BODY);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(third.headers.get('x-upstream')).toBe('HTTP 500');
+  });
+
+  // El cap del plan Demo son 10.000 creditos/mes y cada request descuenta 1.
+  // A 5 min de cache son ~8.640 al mes; a 60s eran ~28.800, tres veces el cap.
+  it('caches long enough to stay inside the monthly credit cap', () => {
+    const { EDGE_TTL_MS } = loadRoute();
+    const callsPerMonth = (30 * 24 * 60 * 60 * 1000) / EDGE_TTL_MS;
+
+    expect(EDGE_TTL_MS).toBeGreaterThanOrEqual(5 * 60 * 1000);
+    expect(callsPerMonth).toBeLessThan(10_000);
   });
 
   it('has nothing to serve when the very first call fails', async () => {
