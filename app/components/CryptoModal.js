@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { isResolvableSymbol } from '../utils/coinGecko';
+import { isResolvableSymbol, PRECIOS_ENDPOINT } from '../utils/coinGecko';
 
 const symbolToId = {
   'BTC': 'bitcoin',
@@ -86,7 +86,7 @@ export default function CryptoModal({ isOpen, onClose, onSubmit, type, existingC
       if (!isResolvableSymbol(upperSymbol, cachedMappings)) {
         try {
           const searchResponse = await fetch(
-            `https://api.coingecko.com/api/v3/search?query=${symbol}`
+            `${PRECIOS_ENDPOINT}?a=search&s=${encodeURIComponent(upperSymbol)}`
           );
           if (!searchResponse.ok) {
             setError('No se pudo verificar la crypto, intentá de nuevo');
@@ -94,7 +94,7 @@ export default function CryptoModal({ isOpen, onClose, onSubmit, type, existingC
           }
           const searchData = await searchResponse.json();
 
-          if (!searchData.coins || searchData.coins.length === 0) {
+          if (!searchData || !searchData[upperSymbol]) {
             setError('Crypto no encontrada en CoinGecko');
             return;
           }

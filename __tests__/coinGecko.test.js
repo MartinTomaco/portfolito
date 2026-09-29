@@ -42,30 +42,30 @@ describe('resolveUnknownSymbols', () => {
 });
 
 describe('searchCoinGeckoIds', () => {
-  it('resolves symbols to CoinGecko IDs via search API', async () => {
-    const mockFetch = jest.fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          coins: [{ id: 'zcash', symbol: 'zec' }]
-        })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          coins: [{ id: 'dogecoin', symbol: 'doge' }]
-        })
-      });
+  it('resolves every unknown symbol in a single batched request', async () => {
+    const mockFetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ 'ZEC': 'zcash', 'DOGE': 'dogecoin' })
+    });
 
     const result = await searchCoinGeckoIds(['ZEC', 'DOGE'], mockFetch);
     expect(result).toEqual({ 'ZEC': 'zcash', 'DOGE': 'dogecoin' });
-    expect(mockFetch).toHaveBeenCalledTimes(2);
+    // Uno solo, no uno por simbolo: antes era la forma mas rapida de quemarse
+    // el rate limit.
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(mockFetch).toHaveBeenCalledWith('/api/precios?a=search&s=ZEC,DOGE');
+  });
+
+  it('does not call the API when there is nothing to look up', async () => {
+    const mockFetch = jest.fn();
+    expect(await searchCoinGeckoIds([], mockFetch)).toEqual({});
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 
   it('skips symbols that return no results', async () => {
     const mockFetch = jest.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ coins: [] })
+      json: async () => ({})
     });
 
     const result = await searchCoinGeckoIds(['FAKECOIN'], mockFetch);
@@ -244,24 +244,22 @@ describe('resolveAndFetchPrecios', () => {
       'BTC': { price: 60000, change24h: 2.5 },
       'ETH': { price: 3000, change24h: -1.0 }
     });
-    // Only 1 call to /simple/price (no /search calls needed)
+    // 1 sola llamada al proxy: los simbolos conocidos no necesitan search
     expect(mockFetch).toHaveBeenCalledTimes(1);
     expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining('api.coingecko.com/api/v3/simple/price')
+      expect.stringContaining('/api/precios?ids=bitcoin,ethereum')
     );
   });
 
   it('resolves unknown symbols via search API', async () => {
     const searchCallCount = { count: 0 };
     const mockFetch = jest.fn().mockImplementation(async (url) => {
-      if (url.includes('/search?query=ZEC')) {
+      if (url.includes('a=search')) {
         searchCallCount.count++;
-        return {
-          ok: true,
-          json: async () => ({ coins: [{ id: 'zcash', symbol: 'zec' }] })
-        };
+        expect(url).toContain('s=ZEC');
+        return { ok: true, json: async () => ({ ZEC: 'zcash' }) };
       }
-      if (url.includes('/simple/price')) {
+      if (url.includes('ids=')) {
         return {
           ok: true,
           json: async () => ({
@@ -310,19 +308,17 @@ describe('resolveAndFetchPrecios', () => {
       'BTC': { price: 60000, change24h: 2.5 },
       'ZEC': { price: 200, change24h: -0.5 }
     });
-    // Only 1 call to /simple/price, no /search calls
+    // 1 sola llamada al proxy, sin search
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
   it('handles mixed known, cached, and unknown symbols', async () => {
     const mockFetch = jest.fn().mockImplementation(async (url) => {
-      if (url.includes('/search?query=DOGE')) {
-        return {
-          ok: true,
-          json: async () => ({ coins: [{ id: 'dogecoin', symbol: 'doge' }] })
-        };
+      if (url.includes('a=search')) {
+        expect(url).toContain('s=DOGE');
+        return { ok: true, json: async () => ({ DOGE: 'dogecoin' }) };
       }
-      if (url.includes('/simple/price')) {
+      if (url.includes('ids=')) {
         return {
           ok: true,
           json: async () => ({

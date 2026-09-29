@@ -1,3 +1,11 @@
+// Todo pasa por /api/precios, no directo contra api.coingecko.com. Pegarle a
+// CoinGecko desde el browser no funciona: devuelve 403 y, como la respuesta de
+// error no trae Access-Control-Allow-Origin, el browser lo reporta como error
+// de CORS. No se arregla desde el cliente, porque no se pueden agregar headers a
+// la respuesta de otra API. El proxy corre en el server, asi que no hay CORS
+// que cumplir y la key, si se agrega, no queda expuesta en el bundle.
+export const PRECIOS_ENDPOINT = '/api/precios';
+
 export const KNOWN_SYMBOL_TO_ID = {
   'BTC': 'bitcoin',
   'ETH': 'ethereum',
@@ -31,21 +39,25 @@ export function isResolvableSymbol(symbol, cachedMappings = {}) {
 
 export async function searchCoinGeckoIds(unknownSymbols, fetchFn = fetch) {
   const newMappings = {};
-  await Promise.all(unknownSymbols.map(async (symbol) => {
-    try {
-      const searchResponse = await fetchFn(
-        `https://api.coingecko.com/api/v3/search?query=${symbol}`
-      );
-      if (searchResponse.ok) {
-        const searchData = await searchResponse.json();
-        if (searchData.coins && searchData.coins.length > 0) {
-          newMappings[symbol] = searchData.coins[0].id;
-        }
+  if (!unknownSymbols || unknownSymbols.length === 0) return newMappings;
+
+  // Un solo request con todos los simbolos desconocidos. Antes era uno por
+  // simbolo en paralelo, que es la forma mas rapida de comerse un rate limit.
+  try {
+    const res = await fetchFn(
+      `${PRECIOS_ENDPOINT}?a=search&s=${unknownSymbols.map(encodeURIComponent).join(',')}`
+    );
+    if (!res.ok) return newMappings;
+    const data = await res.json();
+    if (data && typeof data === 'object') {
+      for (const [symbol, id] of Object.entries(data)) {
+        if (typeof id === 'string' && id) newMappings[symbol] = id;
       }
-    } catch (e) {
-      // Ignore search errors
     }
-  }));
+  } catch {
+    // Si el search falla se sigue igual con lo que ya se sepa resolver: los
+    // simbolos desconocidos quedan sin precio en vez de romper todo el batch.
+  }
   return newMappings;
 }
 
@@ -65,12 +77,19 @@ export function buildSymbolToIdMap(allSymbols, knownMap, cachedMappings, newMapp
   return { resolved, unresolved };
 }
 
-export async function fetchPricesByIds(ids, fetchFn = fetch) {
+export async function fetchPricesByIds(ids, fetchFn = fetch, onMeta = () => {}) {
   if (!ids || ids.length === 0) return {};
 
-  const idsParam = ids.join(',');
   const response = await fetchFn(
-    `https://api.coingecko.com/api/v3/simple/price?ids=${idsParam}&vs_currencies=usd&include_24hr_change=true`
+    `${PRECIOS_ENDPOINT}?ids=${ids.map(encodeURIComponent).join(',')}`
+  );
+
+  // El proxy manda el motivo de una falla en x-upstream y si hay key en
+  // x-hay-key. Se lee de esta misma respuesta para poder diagnosticar desde la
+  // consola del browser sin pedir nada extra.
+  onMeta(
+    `upstream=${response.headers?.get?.('x-upstream') || 's/d'} ` +
+    `key=${response.headers?.get?.('x-hay-key') || 's/d'}`
   );
 
   if (!response.ok) {
@@ -103,6 +122,7 @@ export async function resolveAndFetchPrecios(allSymbols, {
   fetchFn = fetch,
   getCachedMappings = () => ({}),
   saveCachedMappings = () => {},
+  onMeta = () => {},
 } = {}) {
   const cachedMappings = getCachedMappings();
 
@@ -122,7 +142,7 @@ export async function resolveAndFetchPrecios(allSymbols, {
   const ids = Object.values(symbolToId);
   if (ids.length === 0) return {};
 
-  const apiData = await fetchPricesByIds(ids, fetchFn);
+  const apiData = await fetchPricesByIds(ids, fetchFn, onMeta);
   return formatPrices(allSymbols, symbolToId, apiData);
 }
 

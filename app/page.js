@@ -61,14 +61,22 @@ export default function Home() {
         const portfolioSymbols = storedPortfolio ? Object.keys(JSON.parse(storedPortfolio)) : [];
         const allSymbols = [...new Set([...DEFAULT_SYMBOLS, ...portfolioSymbols])];
 
+        let upstream = '';
         const preciosFormateados = await resolveAndFetchPrecios(allSymbols, {
           getCachedMappings: () => JSON.parse(localStorage.getItem('symbolToIdCache') || '{}'),
           saveCachedMappings: (cache) => localStorage.setItem('symbolToIdCache', JSON.stringify(cache)),
+          // Lee el diagnostico de la MISMA respuesta, sin pedir nada extra.
+          onMeta: (meta) => { upstream = meta; },
         });
 
-        // Vacio = la API no respondio (rate limit o caida). Se conservan los
-        // precios que ya teniamos en memoria en vez de dejar las filas a ciegas.
-        if (Object.keys(preciosFormateados).length === 0) return;
+        // Vacio = el proxy no trajo precios (rate limit, key faltante o caida).
+        // Se conservan los que ya teniamos en memoria en vez de dejar las filas
+        // a ciegas.
+        if (Object.keys(preciosFormateados).length === 0) {
+          console.warn(`[precios] sin datos (${upstream || 'motivo desconocido'}). ` +
+            'Si dice key=no, falta COINGECKO_API_KEY en Vercel.');
+          return;
+        }
 
         setPrecios(prevPrecios => ({ ...prevPrecios, ...preciosFormateados }));
         writePriceCache(preciosFormateados, localStorage);
