@@ -6,7 +6,6 @@ import {
   resolveAndFetchPrecios,
   readPriceCache,
   writePriceCache,
-  shouldRefetchOnMount,
   PRECIO_REFRESH_MS
 } from "./utils/coinGecko";
 
@@ -43,11 +42,8 @@ export default function Home() {
   };
 
   useEffect(() => {
-    // 1. Se pinta al instante con el cache y recien ahi se decide si hace
-    //    falta pegarle a la API. Sin cache se consulta siempre; con cache
-    //    tambien, si el precio tiene menos de un minuto, porque a esa altura
-    //    es tan fresco que la llamada extra no se nota y te abre con el
-    //    precio mas al dia.
+    // 1. Se pinta al instante con el último cache conocido y siempre se
+    //    consulta la API al abrir para actualizarlo en segundo plano.
     const cache = readPriceCache(localStorage);
     if (cache) {
       setPrecios(cache.precios);
@@ -107,9 +103,7 @@ export default function Home() {
       }
     };
 
-    if (shouldRefetchOnMount(cache)) {
-      fetchPrecios();
-    }
+    fetchPrecios();
     startPolling();
     document.addEventListener('visibilitychange', onVisibilityChange);
 
