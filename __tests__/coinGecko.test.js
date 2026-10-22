@@ -425,12 +425,12 @@ describe('writePriceCache / readPriceCache', () => {
     expect(justUnder.age).toBe(PRECIO_REFRESH_MS - 1);
   });
 
-  it('returns null once the cache is older than the refresh window', () => {
+  it('keeps older cache available as a fallback while refreshing', () => {
     const storage = fakeStorage();
     writePriceCache(precios, storage, 0);
 
-    expect(readPriceCache(storage, PRECIO_REFRESH_MS)).toBeNull();
-    expect(readPriceCache(storage, PRECIO_REFRESH_MS + 1)).toBeNull();
+    expect(readPriceCache(storage, PRECIO_REFRESH_MS)?.precios).toEqual(precios);
+    expect(readPriceCache(storage, PRECIO_REFRESH_MS + 1)?.precios).toEqual(precios);
   });
 
   it('returns null when there is no cache at all', () => {
@@ -532,9 +532,10 @@ describe('shouldRefetchOnMount', () => {
     expect(older.age).toBe(PRECIO_RECACHE_MS + 1);
     expect(shouldRefetchOnMount(older)).toBe(false);
 
-    // Cache vencido: readPriceCache devuelve null y se consulta.
+    // Cache viejo: se mantiene para mostrarlo y se consulta al abrir.
     const expired = readPriceCache(storage, PRECIO_REFRESH_MS);
-    expect(expired).toBeNull();
-    expect(shouldRefetchOnMount(expired)).toBe(true);
+    expect(expired).not.toBeNull();
+    expect(expired.age).toBe(PRECIO_REFRESH_MS);
+    expect(shouldRefetchOnMount(expired)).toBe(false);
   });
 });

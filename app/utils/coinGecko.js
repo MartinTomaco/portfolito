@@ -188,7 +188,10 @@ export function readPriceCache(storage, now = Date.now()) {
   if (!parsed.precios || typeof parsed.precios !== 'object') return null;
 
   const age = now - parsed.timestamp;
-  if (age < 0 || age >= PRECIO_REFRESH_MS) return null;
+  // El último precio conocido sigue siendo mejor que una celda vacía aunque
+  // haya pasado el intervalo de actualización. Se muestra como respaldo y la
+  // consulta en segundo plano lo reemplaza cuando llega un dato nuevo.
+  if (age < 0) return null;
 
   return { timestamp: parsed.timestamp, precios: parsed.precios, age };
 }
